@@ -1,0 +1,96 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Dispatch #{{ dispatch.id }}{% endblock %}
+{% block page_title %}Dispatch #{{ dispatch.id }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:dispatch_list' %}" class="breadcrumb-parent">Dispatch</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">#{{ dispatch.id }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card" style="margin-bottom:20px;">
+  <div class="sgi-card-body" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+    <div style="flex:1;min-width:200px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Machine</div>
+      <a href="{% url 'sgierp:machine_detail' dispatch.machine.id %}" style="font-size:20px;font-weight:800;color:var(--sgi-text);text-decoration:none;">
+        {{ dispatch.machine.code }} — {{ dispatch.machine.name }}
+      </a>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Units</div>
+      <div style="font-size:24px;font-weight:800;">{{ dispatch.machine_count }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Date</div>
+      <div style="font-size:14px;font-weight:600;">{{ dispatch.dispatch_date|date:"d M Y, h:i A" }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Customer</div>
+      <div style="font-size:14px;">{{ dispatch.customer_name|default:"—" }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Invoice</div>
+      <div style="font-size:14px;">{{ dispatch.invoice_reference|default:"—" }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Dispatched By</div>
+      <div style="font-size:14px;">
+        {% if dispatch.dispatched_by %}
+          {{ dispatch.dispatched_by.get_full_name|default:dispatch.dispatched_by.username }}
+        {% else %}
+          —
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% if dispatch.remarks %}
+  <div style="padding:0 20px 16px;font-size:13px;color:var(--sgi-text-muted);">
+    <i class="bi bi-chat-text"></i> {{ dispatch.remarks }}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Components consumed -->
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-boxes"></i></div>
+      Stock Consumed ({{ components|length }} entries)
+    </div>
+    <a href="{% url 'sgierp:dispatch_challan' dispatch.id %}" target="_blank" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+      <i class="bi bi-printer"></i> Print Challan
+    </a>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if components %}
+    <table class="sgi-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Item</th>
+          <th>Quantity Consumed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in components %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <a href="{% url 'sgierp:item_detail' c.item.id %}" style="color:var(--sgi-primary);font-weight:600;">
+              {{ c.item.code }}
+            </a>
+            <span style="color:var(--sgi-text-muted);"> — {{ c.item.name }}</span>
+          </td>
+          <td><strong>{{ c.quantity_consumed|floatformat:2 }}</strong> {{ c.item.unit }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty" style="padding:30px;">
+      <h4>No consumption records</h4>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Item Groups{% endblock %}
+{% block page_title %}Item Groups{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:inventory' %}" class="breadcrumb-parent">Inventory</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">Groups</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-collection"></i></div>
+      Item Groups ({{ groups|length }})
+    </div>
+    <div style="display:flex;gap:10px;">
+      <form method="GET" style="display:flex;gap:10px;">
+        <div class="sgi-input-group" style="border:1.5px solid var(--sgi-border);border-radius:6px;overflow:hidden;">
+          <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+          <input type="text" class="filter-input sgi-input" name="q" value="{{ search }}"
+            placeholder="Search groups..." style="border:none;width:200px;">
+        </div>
+        <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-sm">Search</button>
+        {% if search %}
+        <a href="{% url 'sgierp:item_groups' %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+          <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="sgi-table-wrap">
+    {% if groups %}
+    <table class="sgi-table">
+      <thead>
+        <tr>
+          <th>Group Name</th>
+          <th>Items</th>
+          <th>Total Quantity</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in groups %}
+        <tr>
+          <td><span class="fw-600">{{ group.name }}</span></td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              {% for item_data in group.items %}
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                <span style="color:var(--sgi-text-muted);">{{ item_data.item.code }}</span>
+                <strong>{{ item_data.total_quantity|floatformat:2 }}</strong>
+                <span style="color:var(--sgi-text-muted);">{{ item_data.item.unit }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </td>
+          <td>
+            <strong style="font-size:16px;">{{ group.total_quantity|floatformat:2 }}</strong>
+            <span style="color:var(--sgi-text-muted);font-size:13px;">units</span>
+          </td>
+          <td>
+            <a href="{% url 'sgierp:inventory' %}?q={{ group.name }}" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+              View Details
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty">
+      <div class="sgi-empty-icon">📦</div>
+      <h4>No groups found</h4>
+      <p>{% if search %}Try clearing the search.{% else %}Add items to create groups.{% endif %}</p>
+      {% if not search %}
+      <div style="margin-top:16px;">
+        <a href="{% url 'sgierp:item_create' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> Add Item
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

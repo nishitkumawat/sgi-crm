@@ -1,0 +1,81 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{% if item %}Edit {{ item.code }}{% else %}Add Item{% endif %}{% endblock %}
+{% block page_title %}{% if item %}Edit {{ item.code }}{% else %}Add Item{% endif %}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:item_catalog' %}" class="breadcrumb-parent">Catalog</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{% if item %}Edit{% else %}Add{% endif %} Item</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;">
+<form method="POST" action="{% if item %}{% url 'sgierp:item_edit' item.id %}{% else %}{% url 'sgierp:item_create' %}{% endif %}">
+{% csrf_token %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-box-seam"></i></div>
+      {% if item %}Edit Item{% else %}Add New Item{% endif %}
+    </div>
+  </div>
+  <div class="sgi-card-body">
+
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="code">Item Code <span class="required">*</span></label>
+        <input type="text" class="sgi-input" id="code" name="code"
+          value="{% if form_data.code %}{{ form_data.code }}{% elif item %}{{ item.code }}{% endif %}"
+          {% if item %}readonly{% endif %} required placeholder="Item Code">
+      </div>
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="unit">Unit</label>
+        <select class="sgi-select" id="unit" name="unit">
+          <option value="pcs" {% if form_data.unit == 'pcs' or item.unit == 'pcs' %}selected{% endif %}>Pieces</option>
+          <option value="sets" {% if form_data.unit == 'sets' or item.unit == 'sets' %}selected{% endif %}>Sets</option>
+          <option value="kg" {% if form_data.unit == 'kg' or item.unit == 'kg' %}selected{% endif %}>Kilograms</option>
+          <option value="m" {% if form_data.unit == 'm' or item.unit == 'm' %}selected{% endif %}>Meters</option>
+          <option value="nos" {% if form_data.unit == 'nos' or item.unit == 'nos' %}selected{% endif %}>Numbers</option>
+          <option value="lt" {% if form_data.unit == 'lt' or item.unit == 'lt' %}selected{% endif %}>Litres</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="name">Item Name <span class="required">*</span></label>
+      <input type="text" class="sgi-input" id="name" name="name"
+        value="{% if form_data.name %}{{ form_data.name }}{% elif item %}{{ item.name }}{% endif %}"
+        required placeholder="Item Name">
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="category">Category</label>
+      <input type="text" class="sgi-input" id="category" name="category"
+        value="{% if form_data.category %}{{ form_data.category }}{% elif item %}{{ item.category }}{% endif %}"
+        placeholder="Category">
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="min_stock_level">Minimum Stock Level</label>
+      <input type="number" class="sgi-input" id="min_stock_level" name="min_stock_level"
+        value="{% if form_data.min_stock_level %}{{ form_data.min_stock_level }}{% elif item %}{{ item.min_stock_level }}{% endif %}"
+        min="0" step="0.01" placeholder="Alert when stock falls below this level">
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-checkbox-label">
+        <input type="checkbox" name="is_active" {% if item and item.is_active %}checked{% elif not item %}checked{% endif %}>
+        <span>Active</span>
+      </label>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:4px;">
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-check-lg"></i> {% if item %}Save Changes{% else %}Create Item{% endif %}
+      </button>
+      <a href="{% url 'sgierp:item_catalog' %}" class="btn-sgi btn-sgi-outline">Cancel</a>
+    </div>
+  </div>
+</div>
+</form>
+</div>
+{% endblock %}

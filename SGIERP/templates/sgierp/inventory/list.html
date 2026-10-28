@@ -1,0 +1,153 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Inventory{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block content %}
+<div class="sgi-content-scrollable">
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-boxes"></i></div>
+      Inventory ({{ entries|length }} entries)
+    </div>
+    <div class="sgi-card-actions">
+      <div class="sgi-card-actions-row">
+        <a href="{% url 'sgierp:item_catalog' %}" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-box-seam"></i> Catalog
+        </a>
+        <a href="{% url 'sgierp:stock_history' %}" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-clock-history"></i> History
+        </a>
+        <!-- <a href="{% url 'sgierp:item_groups' %}" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-collection"></i> Groups
+        </a> -->
+        <button onclick="exportTableToExcel('inventoryTable', 'inventory')" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-download"></i> Export
+        </button>
+      </div>
+      <div class="sgi-card-actions-primary">
+        <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> Add Stock
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;">
+      <div class="sgi-input-group" style="flex:1;min-width:200px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="text" class="sgi-input" name="q" value="{{ search }}"
+          placeholder="Item code or name..." style="border:none;">
+      </div>
+      <select class="sgi-select" name="process_status" style="min-width:140px;">
+        <option value="non_completed" {% if process_status == 'non_completed' %}selected{% endif %}>Non-Completed</option>
+        <option value="completed" {% if process_status == 'completed' %}selected{% endif %}>Completed</option>
+        <option value="all" {% if process_status == 'all' %}selected{% endif %}>All</option>
+      </select>
+      <select class="sgi-select" name="process" style="min-width:140px;">
+        <option value="">All Processes</option>
+        {% for p in processes %}
+        <option value="{{ p.id }}" {% if process_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+      <select class="sgi-select" name="status" style="min-width:120px;">
+        <option value="">All Status</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-funnel"></i> Apply
+      </button>
+      {% if search or process_status or process_filter or status_filter %}
+      <a href="{% url 'sgierp:inventory' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-x"></i> Clear
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="sgi-card-body">
+    <div class="sgi-table-wrap">
+      {% if entries %}
+      <table class="sgi-table" id="inventoryTable">
+        <thead>
+          <tr>
+            <th style="width:48px;"></th>
+            <th>Item Code</th>
+            <th>Item Name</th>
+            <th>Process</th>
+            <th>Quantity</th>
+            <th>Assigned To</th>
+            <th>Last Updated</th>
+            <th style="width:140px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+          <tr>
+            <td><span style="font-size:11px;color:var(--sgi-text-muted);font-family:monospace;">#{{ entry.id }}</span></td>
+            <td><span class="fw-600">{{ entry.item.code }}</span></td>
+            <td>{{ entry.item.name }}</td>
+            <td>
+              <span class="sgi-badge {% if entry.process.is_completed_process %}sgi-badge-green{% else %}sgi-badge-orange{% endif %}" style="font-size:11px;">
+                {{ entry.process.name }}
+              </span>
+            </td>
+            <td>
+              <strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.item.unit }}
+            </td>
+            <td>
+              {% if entry.assigned_to %}
+              <span style="color:var(--sgi-primary);">{{ entry.assigned_to.name }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.assigned_at %}
+              <div style="font-size:12px;">{{ entry.assigned_at|date:"d M Y" }}</div>
+              <div style="font-size:11px;color:var(--sgi-text-muted);">{{ entry.assigned_at|time:"h:i A" }}</div>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:8px;">
+                <a href="{% url 'sgierp:item_detail' entry.item.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move Stock">
+                  <i class="bi bi-arrow-right-circle"></i>
+                </a>
+                <a href="{% url 'sgierp:inventory_entry_delete' entry.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete this inventory entry? Related history will also be removed.');" title="Delete Entry">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% else %}
+      <div class="sgi-empty">
+        <div class="sgi-empty-icon">📦</div>
+        <h4>No stock entries found</h4>
+        <p>{% if search or process_filter %}Try clearing the filters.{% else %}Add your first stock to get started.{% endif %}</p>
+        {% if not search and not process_filter %}
+        <div style="margin-top:16px;">
+          <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-primary">
+            <i class="bi bi-plus-lg"></i> Add Stock
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

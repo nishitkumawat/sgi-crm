@@ -1,0 +1,59 @@
+{% extends 'sgierp/base.html' %}
+{% load static %}
+
+{% block auth_content %}
+<div class="sgi-auth-body">
+  <div class="sgi-auth-card">
+    <div class="sgi-auth-header">
+      <img src="{% static 'sgierp/images/logo.png' %}" alt="Shree Gayatri Industries" class="sgi-auth-logo-img">
+      <p></p>
+    </div>
+    <div class="sgi-auth-body-inner">
+      <form method="POST" action="{% url 'sgierp:login' %}">
+        {% csrf_token %}
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="sgi-alert {% if message.tags == 'error' %}sgi-alert-error{% elif message.tags == 'success' %}sgi-alert-success{% else %}sgi-alert-info{% endif %}" style="margin-bottom:16px;">
+          <i class="bi bi-exclamation-triangle-fill"></i> {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="username">Username <span class="required">*</span></label>
+          <div class="sgi-input-group">
+            <span class="sgi-input-icon"><i class="bi bi-person"></i></span>
+            <input type="text" class="sgi-input" id="username" name="username"
+              placeholder="Enter your username"
+              value="{{ request.POST.username|default:'' }}" required autofocus>
+          </div>
+        </div>
+
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="password">Password <span class="required">*</span></label>
+          <div class="sgi-input-group">
+            <span class="sgi-input-icon"><i class="bi bi-lock"></i></span>
+            <input type="password" class="sgi-input" id="password" name="password"
+              placeholder="Enter your password" required>
+            <button type="button" class="sgi-input-icon" data-show-password="password"
+              style="border-left:1px solid var(--sgi-border);cursor:pointer;background:var(--sgi-bg);">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-sgi btn-sgi-primary" style="width:100%;justify-content:center;padding:11px;">
+          <i class="bi bi-box-arrow-in-right"></i> Sign In
+        </button>
+
+        <div class="sgi-auth-links">
+          <a href="{% url 'sgierp:forgot_password' %}">Forgot password?</a>
+          <!-- &nbsp;·&nbsp;
+          <a href="{% url 'sgierp:signup' %}">Create account</a> -->
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

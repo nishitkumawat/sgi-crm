@@ -1,0 +1,156 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ machine.code }}{% endblock %}
+{% block page_title %}{{ machine.code }} — {{ machine.name }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:machine_list' %}" class="breadcrumb-parent">Machines</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ machine.code }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="sgi-card" style="margin-bottom:20px;">
+  <div class="sgi-card-body" style="display:flex;gap:20px;align-items:flex-start;">
+    {% if machine.image %}
+    <img src="{{ machine.image.url }}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--sgi-border);">
+    {% else %}
+    <div style="width:80px;height:80px;border-radius:10px;background:var(--sgi-primary-bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--sgi-primary);flex-shrink:0;">⚙️</div>
+    {% endif %}
+    <div style="flex:1;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <h2 style="font-size:22px;font-weight:800;">{{ machine.name }}</h2>
+        {% if machine.is_active %}
+        <span class="sgi-badge sgi-badge-green">Active</span>
+        {% else %}
+        <span class="sgi-badge sgi-badge-grey">Inactive</span>
+        {% endif %}
+      </div>
+      <div style="font-size:13px;color:var(--sgi-text-muted);">
+        <span><i class="bi bi-tag"></i> {{ machine.code }}</span>
+        {% if machine.description %}
+        <p style="margin-top:6px;">{{ machine.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'sgierp:machine_edit' machine.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+        <i class="bi bi-pencil"></i> Edit
+      </a>
+      <a href="{% url 'sgierp:dispatch_create' %}?machine={{ machine.id }}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+        <i class="bi bi-truck"></i> Dispatch
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- BOM -->
+<div class="sgi-card" style="margin-bottom:20px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-list-ul"></i></div>
+      Bill of Materials ({{ enriched_bom|length }} components)
+    </div>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if enriched_bom %}
+    <table class="bom-table" style="width:100%;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Item</th>
+          <th>Qty / Machine</th>
+          <th>Completed Stock Available</th>
+          <th>Sufficient for 1 Unit?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in enriched_bom %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <a href="{% url 'sgierp:item_detail' entry.item.id %}" style="color:var(--sgi-primary);font-weight:600;">
+              {{ entry.item.code }}
+            </a>
+            <span style="color:var(--sgi-text-muted);"> — {{ entry.item.name }}</span>
+          </td>
+          <td><strong>{{ entry.quantity_required|floatformat:2 }}</strong> {{ entry.item.unit }}</td>
+          <td>
+            <strong {% if entry.available_completed < entry.quantity_required %}class="insufficient"{% else %}class="sufficient"{% endif %}>
+              {{ entry.available_completed|floatformat:2 }}
+            </strong> {{ entry.item.unit }}
+          </td>
+          <td>
+            {% if entry.available_completed >= entry.quantity_required %}
+            <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-lg"></i> Yes</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-red"><i class="bi bi-x-lg"></i> No</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty" style="padding:30px;">
+      <h4>No BOM defined</h4>
+      <p>Edit this machine to add components.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Dispatch history -->
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-truck"></i></div>
+      Recent Dispatches
+    </div>
+    <a href="{% url 'sgierp:dispatch_list' %}?machine={{ machine.id }}" class="btn-sgi btn-sgi-outline btn-sgi-sm">View All</a>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if dispatches %}
+    <table class="sgi-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Count</th>
+          <th>Customer</th>
+          <th>Invoice</th>
+          <th>By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dispatches %}
+        <tr>
+          <td><strong>#{{ d.id }}</strong></td>
+          <td><span class="time-badge">{{ d.dispatch_date|date:"d M Y, h:i A" }}</span></td>
+          <td><span class="sgi-badge sgi-badge-orange">{{ d.machine_count }} unit{{ d.machine_count|pluralize }}</span></td>
+          <td>{{ d.customer_name|default:"—" }}</td>
+          <td>{{ d.invoice_reference|default:"—" }}</td>
+          <td style="font-size:12px;color:var(--sgi-text-muted);">
+            {% if d.dispatched_by %}
+              {{ d.dispatched_by.get_full_name|default:d.dispatched_by.username }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'sgierp:dispatch_detail' d.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty" style="padding:30px;">
+      <h4>No dispatches yet</h4>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

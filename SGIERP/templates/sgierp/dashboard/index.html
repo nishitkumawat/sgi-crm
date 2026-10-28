@@ -1,0 +1,123 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Recent Activity -->
+<div class="sgi-card" style="margin-bottom: 20px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-clock-history"></i></div>
+      Recent Activity
+    </div>
+  </div>
+  <div class="sgi-card-body" style="padding:0;">
+    {% if recent_entries %}
+    <div style="overflow:hidden;">
+      {% for entry in recent_entries %}
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--sgi-border);">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--sgi-primary-bg);display:flex;align-items:center;justify-content:center;color:var(--sgi-primary);font-size:15px;flex-shrink:0;">
+          <i class="bi bi-box-seam"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ entry.item.name }} — {{ entry.quantity }} units
+          </div>
+          <div style="font-size:11px;color:var(--sgi-text-muted);">
+            In {{ entry.process.name }} - {{ entry.assigned_to.name }}
+          </div>
+        </div>
+        <span class="time-badge">{{ entry.updated_at|timesince }} ago</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="sgi-empty" style="padding:30px;">
+        <div class="sgi-empty-icon">📋</div>
+        <h4>No activity yet</h4>
+        <p>Stock entries will appear here</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-card-icon orange"><i class="bi bi-boxes"></i></div>
+    <div class="stat-card-value">{{ stats.total_items }}</div>
+    <div class="stat-card-label">Total Items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon green"><i class="bi bi-archive-fill"></i></div>
+    <div class="stat-card-value">{{ stats.active_entries }}</div>
+    <div class="stat-card-label">Active Entries</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon blue"><i class="bi bi-check2-circle"></i></div>
+    <div class="stat-card-value">{{ stats.completed_stock }}</div>
+    <div class="stat-card-label">Completed Units</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon orange"><i class="bi bi-gear-wide-connected"></i></div>
+    <div class="stat-card-value">{{ stats.total_machines }}</div>
+    <div class="stat-card-label">Machines</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon green"><i class="bi bi-truck"></i></div>
+    <div class="stat-card-value">{{ stats.dispatches_today }}</div>
+    <div class="stat-card-label">Dispatches Today</div>
+  </div>
+</div>
+
+<!-- Process Stock Distribution -->
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-bar-chart-steps"></i></div>
+      Stock by Process
+    </div>
+    <a href="{% url 'sgierp:inventory' %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">View All</a>
+  </div>
+  <div class="sgi-card-body" style="padding:12px 20px;">
+    {% if process_stock %}
+      {% for ps in process_stock %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px;">{{ ps.process_name }}</div>
+          <div class="sgi-progress">
+            <div class="sgi-progress-bar {% if ps.is_completed %}green{% endif %}"
+              style="width:{% if total_stock > 0 %}{{ ps.total|floatformat:0 }}{% else %}0{% endif %}%;max-width:100%"></div>
+          </div>
+        </div>
+        <div style="font-size:13px;font-weight:700;min-width:50px;text-align:right;">
+          {{ ps.total|floatformat:0 }}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="sgi-empty" style="padding:30px;">
+        <div class="sgi-empty-icon">📦</div>
+        <h4>No stock yet</h4>
+        <p>Add items and stock to see distribution</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Quick Action Buttons -->
+<div class="quick-actions">
+  <a href="{% url 'sgierp:item_create' %}" class="btn-sgi btn-sgi-primary">
+    <i class="bi bi-plus-circle"></i> Add Item
+  </a>
+  <a href="{% url 'sgierp:stock_move' %}" class="btn-sgi btn-sgi-outline">
+    <i class="bi bi-arrow-left-right"></i> Move Stock
+  </a>
+  <a href="{% url 'sgierp:dispatch_create' %}" class="btn-sgi btn-sgi-outline">
+    <i class="bi bi-truck"></i> New Dispatch
+  </a>
+  <a href="{% url 'sgierp:machine_create' %}" class="btn-sgi btn-sgi-outline">
+    <i class="bi bi-gear-wide-connected"></i> Add Machine
+  </a>
+</div>
+{% endblock %}

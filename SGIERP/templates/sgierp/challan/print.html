@@ -1,0 +1,228 @@
+{% extends 'sgierp/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  .challan-container {
+    padding: 20px;
+    background: #f5f5f5;
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 10mm 12mm 8mm;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 12px #0002;
+  }
+  .jurisdiction {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0 0 7mm;
+  }
+  .header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8mm;
+    align-items: start;
+  }
+  .brand { display: flex; gap: 8px; align-items: center; }
+  .logo {
+    border: 1.5px solid #111;
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px; flex-shrink: 0;
+  }
+  .company-name { font-size: 15px; font-weight: 800; line-height: 1.15; }
+  .company-sub { font-size: 9px; font-weight: 700; letter-spacing: .6px; margin-top: 3px; }
+  .products { text-align: right; font-size: 9px; line-height: 1.5; color: #333; }
+  .rule { border: 0; border-top: 1px solid #111; margin: 5mm 0 3mm; }
+  .contact {
+    display: grid; grid-template-columns: 1fr auto; gap: 3mm 8mm;
+    font-size: 9px; line-height: 1.45;
+  }
+  .contact-right { text-align: right; }
+  .title-box {
+    border: 1px solid #111; border-radius: 4px; padding: 4mm;
+    display: grid; grid-template-columns: 1fr auto; align-items: center;
+    margin-top: 6mm;
+  }
+  .doc-title { font-size: 16px; font-weight: 800; letter-spacing: .3px; }
+  .doc-subtitle { color: #333; font-size: 9px; margin-top: 3px; }
+  .meta { display: flex; gap: 7mm; align-items: center; }
+  .meta-field { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .write-line { display: inline-block; width: 22mm; height: 13px; border-bottom: 1px solid #111; }
+  .write-line.short { width: 17mm; }
+  .consignee { border: 1px solid #777; border-radius: 4px; margin-top: 4mm; overflow: hidden; }
+  .section-title { background: #f5f5f5; padding: 2.5mm 3mm; font-weight: 700; font-size: 9px; }
+  .consignee-body { display: grid; grid-template-columns: 55% 45%; min-height: 13mm; }
+  .consignee-col { padding: 3mm; }
+  .consignee-col + .consignee-col { border-left: 1px solid #777; }
+  .field-line { height: 8mm; border-bottom: 1px solid #999; display: flex; align-items: flex-start; gap: 5px; }
+  .field-line:last-child { border-bottom: 0; }
+  .field-label { font-weight: 700; white-space: nowrap; }
+  .items {
+    border-collapse: collapse; width: 100%; margin-top: 4mm; table-layout: fixed;
+    flex: 1;
+  }
+  .items th {
+    color: #fff; background: #111; border: 1px solid #111;
+    padding: 2.5mm 2mm; text-align: center; font-size: 9px;
+  }
+  .items td { border: 1px solid #777; height: 11mm; }
+  .items th:nth-child(1) { width: 10mm; }
+  .items th:nth-child(2) { width: 70mm; text-align: left; padding-left: 3mm; }
+  .items th:nth-child(3) { width: 30mm; }
+  .items th:nth-child(4) { width: 15mm; }
+  .items th:nth-child(5) { width: auto; }
+  .receipt {
+    border: 1px solid #777; border-radius: 4px; margin-top: 5mm;
+    padding: 3mm; min-height: 32mm;
+  }
+  .receipt-title { font-weight: 700; font-size: 9px; margin-bottom: 3mm; }
+  .receipt p { margin: 0 0 2mm; font-size: 9px; }
+  .signatures { display: grid; grid-template-columns: 1fr 1fr; margin-top: 4mm; min-height: 15mm; }
+  .signature { padding: 0 3mm; display: flex; flex-direction: column; justify-content: flex-end; }
+  .signature + .signature { border-left: 1px solid #777; text-align: right; }
+  .sign-line { border-top: 1px solid #777; margin-bottom: 2mm; }
+  .sign-label { font-weight: 700; font-size: 9px; }
+  .sign-note { color: #333; font-size: 8px; margin-top: 2px; }
+  .footer { text-align: center; font-size: 7px; color: #333; margin-top: 4mm; }
+  .toolbar { margin-bottom: 20px; display: flex; gap: 8px; justify-content: flex-end; }
+  @media print {
+    .sgi-layout, .sgi-sidebar, .sgi-topbar, .toolbar { display: none !important; }
+    .sgi-main { margin: 0 !important; }
+    .sgi-content { padding: 0 !important; }
+    .challan-container { padding: 0 !important; background: #fff !important; }
+    .page { margin: 0 !important; box-shadow: none !important; }
+  }
+  @media screen and (max-width: 800px) {
+    .page { width: 100%; }
+    .page { min-height: auto; padding: 20px; }
+    .header { grid-template-columns: 1fr; }
+    .products, .contact-right { text-align: left; }
+    .contact { grid-template-columns: 1fr; }
+    .title-box { grid-template-columns: 1fr; gap: 12px; }
+    .meta { flex-wrap: wrap; }
+  }
+</style>
+{% endblock %}
+
+{% block page_title %}Challan {{ challan.challan_number }}{% endblock %}
+
+{% block content %}
+<div class="challan-container">
+  <div class="toolbar">
+    <a href="{% url 'sgierp:challan_detail' challan.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+      <i class="bi bi-arrow-left"></i> Back to Challan
+    </a>
+    <button onclick="window.print()" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+      <i class="bi bi-printer"></i> Print / Save as PDF
+    </button>
+  </div>
+
+  <main class="page">
+    <div class="jurisdiction">Subject to Ahmedabad Jurisdiction</div>
+
+    <header class="header">
+      <div class="brand">
+        <div class="logo">SG</div>
+        <div>
+          <div class="company-name">SHREE GAYATRI</div>
+          <div class="company-sub">INDUSTRIES</div>
+        </div>
+      </div>
+      <div class="products">
+        Mfg. of Rolling Shutter Motor, Gate Motor,<br>
+        Rolling Shutter Strip Forming Machine,<br>
+        Roofing Sheet Forming Machine &amp; All Types<br>
+        of Forming Machines
+      </div>
+    </header>
+
+    <hr class="rule">
+
+    <section class="contact">
+      <div>
+        43-A, Satva Bhoomi Estate, Near Shiv Hospital, Bakrol-Bujrang,<br>
+        Indore Highway, Ahmedabad.
+      </div>
+      <div class="contact-right"><strong>+91 99988 43963&nbsp; | &nbsp;+91 98254 35437</strong></div>
+      <div>
+        Email: shreegayatriautomation@gmail.com<br>
+        Website: www.shreegayatriautomation.in
+      </div>
+      <div class="contact-right"><strong>GSTIN: 24BDMPM9420Q1ZV</strong></div>
+    </section>
+
+    <section class="title-box">
+      <div>
+        <div class="doc-title">{{ challan.get_challan_type_display|upper }}</div>
+        <div class="doc-subtitle">Material Transfer Document</div>
+      </div>
+      <div class="meta">
+        <div class="meta-field"><strong>CHALLAN NO.</strong><span class="write-line">{{ challan.challan_number }}</span></div>
+        <div class="meta-field"><strong>DATE</strong><span class="write-line short">{{ challan.date|date:"d/m/y" }}</span></div>
+      </div>
+    </section>
+
+    <section class="consignee">
+      <div class="section-title">PARTY DETAILS</div>
+      <div class="consignee-body">
+        <div class="consignee-col">
+          <div class="field-line"><span class="field-label">M/s.</span> {{ challan.party_name }}</div>
+          <div class="field-line"><span class="field-label">Address</span> {{ challan.party_address|default:"—" }}</div>
+        </div>
+        <div class="consignee-col">
+          <div class="field-line"><span class="field-label">Contact</span> {{ challan.party_contact|default:"—" }}</div>
+          <div class="field-line"><span class="field-label">Assigned To</span> {{ challan.assignee.name|default:"—" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <table class="items" aria-label="Challan items">
+      <thead>
+        <tr><th>No.</th><th>Particulars</th><th>Process</th><th>Qty.</th><th>Remarks</th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ item.item.name }} ({{ item.item.code }})</td>
+          <td>{{ item.process.name|default:"—" }}</td>
+          <td>{{ item.quantity|floatformat:2 }} {{ item.unit }}</td>
+          <td>{{ item.remarks|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+        {% for i in blank_rows %}
+        <tr><td></td><td></td><td></td><td></td><td></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <section class="receipt">
+      <div class="receipt-title">RECEIPT CONFIRMATION</div>
+      <p>Please receive the above goods in good order and condition.</p>
+      <p>Kindly return the duplicate copy duly signed.</p>
+      <div class="signatures">
+        <div class="signature">
+          <div class="sign-line"></div>
+          <div class="sign-label">Receiver's Signature</div>
+        </div>
+        <div class="signature">
+          <div class="sign-line"></div>
+          <div class="sign-label">For, SHREE GAYATRI INDUSTRIES</div>
+          <div class="sign-note">Authorised Signatory</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">SHREE GAYATRI INDUSTRIES &nbsp; | &nbsp; {{ challan.get_challan_type_display|upper }}</div>
+  </main>
+</div>
+{% endblock %}

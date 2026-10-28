@@ -1,0 +1,62 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;margin:0 auto;">
+  <!-- Processes Card -->
+  <a href="{% url 'sgierp:settings_processes' %}" style="text-decoration:none;">
+    <div class="sgi-card" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
+      <div class="sgi-card-body" style="text-align:center;padding:40px 24px;">
+        <div style="width:80px;height:80px;background:var(--sgi-primary-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <i class="bi bi-diagram-3" style="font-size:36px;color:var(--sgi-primary);"></i>
+        </div>
+        <h3 style="margin:0 0 8px;font-size:20px;color:var(--sgi-text);">Manufacturing Processes</h3>
+        <p style="margin:0;color:var(--sgi-text-muted);font-size:14px;">Configure workflow stages</p>
+        <div style="margin-top:16px;">
+          <span class="sgi-badge sgi-badge-blue">{{ processes|length }} processes</span>
+        </div>
+      </div>
+    </div>
+  </a>
+
+  <!-- Assignees Card -->
+  <a href="{% url 'sgierp:settings_assignees' %}" style="text-decoration:none;">
+    <div class="sgi-card" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
+      <div class="sgi-card-body" style="text-align:center;padding:40px 24px;">
+        <div style="width:80px;height:80px;background:var(--sgi-success-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <i class="bi bi-person-badge" style="font-size:36px;color:var(--sgi-success);"></i>
+        </div>
+        <h3 style="margin:0 0 8px;font-size:20px;color:var(--sgi-text);">Assignees</h3>
+        <p style="margin:0;color:var(--sgi-text-muted);font-size:14px;">Workers, departments & external parties</p>
+        <div style="margin-top:16px;">
+          <span class="sgi-badge sgi-badge-green">{{ assignees|length }} assignees</span>
+        </div>
+      </div>
+    </div>
+  </a>
+
+  <!-- Users Card -->
+  <a href="{% url 'sgierp:settings_users' %}" style="text-decoration:none;">
+    <div class="sgi-card" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
+      <div class="sgi-card-body" style="text-align:center;padding:40px 24px;">
+        <div style="width:80px;height:80px;background:var(--sgi-info-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <i class="bi bi-people" style="font-size:36px;color:var(--sgi-info);"></i>
+        </div>
+        <h3 style="margin:0 0 8px;font-size:20px;color:var(--sgi-text);">ERP Users</h3>
+        <p style="margin:0;color:var(--sgi-text-muted);font-size:14px;">System users and access management</p>
+        <div style="margin-top:16px;">
+          <span class="sgi-badge sgi-badge-blue">{{ erp_users|length }} users</span>
+        </div>
+      </div>
+    </div>
+  </a>
+</div>
+
+<style>
+.sgi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+</style>
+{% endblock %}

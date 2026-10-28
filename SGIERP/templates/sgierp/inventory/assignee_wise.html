@@ -1,0 +1,273 @@
+{% extends "sgierp/base.html" %}
+
+{% block title %}Stock by Assignee - SGIERP{% endblock %}
+
+{% block content %}
+<div class="sgi-container">
+  <div class="sgi-header">
+    <div class="sgi-header-title">
+      <h1>Stock by Assignee</h1>
+      <p>View inventory organized by assigned workers</p>
+    </div>
+    <div class="sgi-header-actions">
+      <a href="{% url 'sgierp:inventory' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-list"></i> Inventory List
+      </a>
+    </div>
+  </div>
+
+  <div class="sgi-card">
+    <div class="sgi-card-body">
+      <div class="sgi-form-group" style="margin-bottom: 20px;">
+        <input type="text" class="sgi-input" id="search" placeholder="Search items..." 
+               value="{{ search }}" oninput="filterTabs()">
+      </div>
+
+      <div class="sgi-tabs">
+        <div class="sgi-tab-header">
+          <button class="sgi-tab-btn active" onclick="switchTab('all')" data-tab="all">
+            All Assignees
+          </button>
+          {% for a_data in assignee_data %}
+          <button class="sgi-tab-btn" onclick="switchTab('{{ a_data.assignee.id }}')" data-tab="{{ a_data.assignee.id }}">
+            {{ a_data.assignee.name }} ({{ a_data.entries|length }})
+          </button>
+          {% endfor %}
+        </div>
+
+        <div class="sgi-tab-content">
+          <!-- All Assignees Tab -->
+          <div class="sgi-tab-pane active" id="tab-all">
+            {% for a_data in assignee_data %}
+            <div class="assignee-section" data-assignee-name="{{ a_data.assignee.name|lower }}">
+              <div class="assignee-header">
+                <h3>{{ a_data.assignee.name }}</h3>
+                {% if a_data.assignee.department %}
+                <span class="badge-dept">{{ a_data.assignee.department }}</span>
+                {% endif %}
+                <span class="badge">{{ a_data.total|floatformat:2 }} total</span>
+              </div>
+              <div class="sgi-table-wrap">
+              <table class="sgi-table">
+                <thead>
+                  <tr>
+                    <th>Item Code</th>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Process</th>
+                    <th>Assigned At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for entry in a_data.entries %}
+                  <tr>
+                    <td>{{ entry.item.code }}</td>
+                    <td>{{ entry.item.name }}</td>
+                    <td>{{ entry.quantity|floatformat:2 }}</td>
+                    <td>{{ entry.item.unit }}</td>
+                    <td>{{ entry.process.name }}</td>
+                    <td>
+                      {% if entry.assigned_at %}
+                      {{ entry.assigned_at|date:"d M Y, h:i A" }}
+                      {% else %}
+                      <span style="color:var(--sgi-text-muted);">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Individual Assignee Tabs -->
+          {% for a_data in assignee_data %}
+          <div class="sgi-tab-pane" id="tab-{{ a_data.assignee.id }}">
+            <div class="assignee-header">
+              <h3>{{ a_data.assignee.name }}</h3>
+              {% if a_data.assignee.department %}
+              <span class="badge-dept">{{ a_data.assignee.department }}</span>
+              {% endif %}
+              <span class="badge">{{ a_data.total|floatformat:2 }} total</span>
+            </div>
+            <div class="sgi-table-wrap">
+            <table class="sgi-table">
+              <thead>
+                <tr>
+                  <th>Item Code</th>
+                  <th>Item Name</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Process</th>
+                  <th>Assigned At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in a_data.entries %}
+                <tr>
+                  <td>{{ entry.item.code }}</td>
+                  <td>{{ entry.item.name }}</td>
+                  <td>{{ entry.quantity|floatformat:2 }}</td>
+                  <td>{{ entry.item.unit }}</td>
+                  <td>{{ entry.process.name }}</td>
+                  <td>
+                    {% if entry.assigned_at %}
+                    {{ entry.assigned_at|date:"d M Y, h:i A" }}
+                    {% else %}
+                    <span style="color:var(--sgi-text-muted);">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.sgi-tabs {
+  margin-top: 20px;
+}
+
+.sgi-tab-header {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--sgi-border);
+  overflow-x: auto;
+  padding-bottom: 0;
+}
+
+.sgi-tab-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--sgi-text);
+  white-space: nowrap;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.sgi-tab-btn:hover {
+  color: var(--sgi-primary);
+}
+
+.sgi-tab-btn.active {
+  border-bottom-color: var(--sgi-primary);
+  color: var(--sgi-primary);
+  font-weight: 600;
+}
+
+.sgi-tab-content {
+  margin-top: 20px;
+}
+
+.sgi-tab-pane {
+  display: none;
+}
+
+.sgi-tab-pane.active {
+  display: block;
+}
+
+.assignee-section {
+  margin-bottom: 30px;
+}
+
+.assignee-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--sgi-border);
+}
+
+.assignee-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--sgi-text);
+}
+
+.badge {
+  background: var(--sgi-primary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-dept {
+  background: var(--sgi-secondary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+</style>
+
+<script>
+function switchTab(tabId) {
+  // Hide all tab panes
+  document.querySelectorAll('.sgi-tab-pane').forEach(pane => {
+    pane.classList.remove('active');
+  });
+  
+  // Remove active from all buttons
+  document.querySelectorAll('.sgi-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Show selected tab
+  document.getElementById('tab-' + tabId).classList.add('active');
+  
+  // Activate button
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+}
+
+function filterTabs() {
+  const search = document.getElementById('search').value.toLowerCase();
+  
+  // Filter in All tab
+  document.querySelectorAll('#tab-all .assignee-section').forEach(section => {
+    const assigneeName = section.getAttribute('data-assignee-name');
+    const rows = section.querySelectorAll('tbody tr');
+    let hasMatch = false;
+    
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      if (text.includes(search)) {
+        row.style.display = '';
+        hasMatch = true;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    
+    section.style.display = hasMatch ? 'block' : 'none';
+  });
+  
+  // Filter in individual tabs
+  document.querySelectorAll('.sgi-tab-pane:not(#tab-all)').forEach(pane => {
+    const rows = pane.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(search) ? '' : 'none';
+    });
+  });
+}
+</script>
+{% endblock %}

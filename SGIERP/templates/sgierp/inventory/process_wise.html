@@ -1,0 +1,270 @@
+{% extends "sgierp/base.html" %}
+
+{% block title %}Stock by Process - SGIERP{% endblock %}
+
+{% block content %}
+<div class="sgi-container">
+  <div class="sgi-header">
+    <div class="sgi-header-title">
+      <h1>Stock by Process</h1>
+      <p>View inventory organized by manufacturing processes</p>
+    </div>
+    <div class="sgi-header-actions">
+      <a href="{% url 'sgierp:inventory' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-list"></i> Inventory List
+      </a>
+    </div>
+  </div>
+
+  <div class="sgi-card">
+    <div class="sgi-card-body">
+      <div class="sgi-form-group" style="margin-bottom: 20px;">
+        <input type="text" class="sgi-input" id="search" placeholder="Search items..." 
+               value="{{ search }}" oninput="filterTabs()">
+      </div>
+
+      <div class="sgi-tabs">
+        <div class="sgi-tab-header">
+          <button class="sgi-tab-btn active" onclick="switchTab('all')" data-tab="all">
+            All Processes
+          </button>
+          {% for p_data in process_data %}
+          <button class="sgi-tab-btn" onclick="switchTab('{{ p_data.process.id }}')" data-tab="{{ p_data.process.id }}">
+            {{ p_data.process.name }} ({{ p_data.entries|length }})
+          </button>
+          {% endfor %}
+        </div>
+
+        <div class="sgi-tab-content">
+          <!-- All Processes Tab -->
+          <div class="sgi-tab-pane active" id="tab-all">
+            {% for p_data in process_data %}
+            <div class="process-section" data-process-name="{{ p_data.process.name|lower }}">
+              <div class="process-header">
+                <h3>{{ p_data.process.name }}</h3>
+                <span class="badge">{{ p_data.total|floatformat:2 }} total</span>
+              </div>
+              <div class="sgi-table-wrap">
+              <table class="sgi-table">
+                <thead>
+                  <tr>
+                    <th>Item Code</th>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Assigned To</th>
+                    <th>Assigned At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for entry in p_data.entries %}
+                  <tr>
+                    <td>{{ entry.item.code }}</td>
+                    <td>{{ entry.item.name }}</td>
+                    <td>{{ entry.quantity|floatformat:2 }}</td>
+                    <td>{{ entry.item.unit }}</td>
+                    <td>
+                      {% if entry.assigned_to %}
+                      {{ entry.assigned_to.name }}
+                      {% else %}
+                      <span style="color:var(--sgi-text-muted);">—</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if entry.assigned_at %}
+                      {{ entry.assigned_at|date:"d M Y, h:i A" }}
+                      {% else %}
+                      <span style="color:var(--sgi-text-muted);">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Individual Process Tabs -->
+          {% for p_data in process_data %}
+          <div class="sgi-tab-pane" id="tab-{{ p_data.process.id }}">
+            <div class="process-header">
+              <h3>{{ p_data.process.name }}</h3>
+              <span class="badge">{{ p_data.total|floatformat:2 }} total</span>
+            </div>
+            <div class="sgi-table-wrap">
+            <table class="sgi-table">
+              <thead>
+                <tr>
+                  <th>Item Code</th>
+                  <th>Item Name</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Assigned To</th>
+                  <th>Assigned At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in p_data.entries %}
+                <tr>
+                  <td>{{ entry.item.code }}</td>
+                  <td>{{ entry.item.name }}</td>
+                  <td>{{ entry.quantity|floatformat:2 }}</td>
+                  <td>{{ entry.item.unit }}</td>
+                  <td>
+                    {% if entry.assigned_to %}
+                    {{ entry.assigned_to.name }}
+                    {% else %}
+                    <span style="color:var(--sgi-text-muted);">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.assigned_at %}
+                    {{ entry.assigned_at|date:"d M Y, h:i A" }}
+                    {% else %}
+                    <span style="color:var(--sgi-text-muted);">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.sgi-tabs {
+  margin-top: 20px;
+}
+
+.sgi-tab-header {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--sgi-border);
+  overflow-x: auto;
+  padding-bottom: 0;
+}
+
+.sgi-tab-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--sgi-text);
+  white-space: nowrap;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.sgi-tab-btn:hover {
+  color: var(--sgi-primary);
+}
+
+.sgi-tab-btn.active {
+  border-bottom-color: var(--sgi-primary);
+  color: var(--sgi-primary);
+  font-weight: 600;
+}
+
+.sgi-tab-content {
+  margin-top: 20px;
+}
+
+.sgi-tab-pane {
+  display: none;
+}
+
+.sgi-tab-pane.active {
+  display: block;
+}
+
+.process-section {
+  margin-bottom: 30px;
+}
+
+.process-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--sgi-border);
+}
+
+.process-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--sgi-text);
+}
+
+.badge {
+  background: var(--sgi-primary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+</style>
+
+<script>
+function switchTab(tabId) {
+  // Hide all tab panes
+  document.querySelectorAll('.sgi-tab-pane').forEach(pane => {
+    pane.classList.remove('active');
+  });
+  
+  // Remove active from all buttons
+  document.querySelectorAll('.sgi-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Show selected tab
+  document.getElementById('tab-' + tabId).classList.add('active');
+  
+  // Activate button
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+}
+
+function filterTabs() {
+  const search = document.getElementById('search').value.toLowerCase();
+  
+  // Filter in All tab
+  document.querySelectorAll('#tab-all .process-section').forEach(section => {
+    const processName = section.getAttribute('data-process-name');
+    const rows = section.querySelectorAll('tbody tr');
+    let hasMatch = false;
+    
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      if (text.includes(search)) {
+        row.style.display = '';
+        hasMatch = true;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    
+    section.style.display = hasMatch ? 'block' : 'none';
+  });
+  
+  // Filter in individual tabs
+  document.querySelectorAll('.sgi-tab-pane:not(#tab-all)').forEach(pane => {
+    const rows = pane.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(search) ? '' : 'none';
+    });
+  });
+}
+</script>
+{% endblock %}

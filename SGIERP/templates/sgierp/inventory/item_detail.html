@@ -1,0 +1,204 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ item.code }}{% endblock %}
+{% block page_title %}{{ item.code }} — {{ item.name }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:inventory' %}" class="breadcrumb-parent">Inventory</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ item.code }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Header card -->
+<div class="sgi-card" style="margin-bottom:20px;">
+  <div class="sgi-card-body" style="display:flex;gap:20px;align-items:flex-start;">
+    {% if item.image %}
+    <img src="{{ item.image.url }}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--sgi-border);">
+    {% else %}
+    <div style="width:80px;height:80px;border-radius:10px;background:var(--sgi-primary-bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--sgi-primary);flex-shrink:0;">
+      <i class="bi bi-box-seam"></i>
+    </div>
+    {% endif %}
+    <div style="flex:1;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <h2 style="font-size:22px;font-weight:800;">{{ item.name }}</h2>
+        {% if item.is_active %}
+        <span class="sgi-badge sgi-badge-green"><i class="bi bi-circle-fill" style="font-size:7px;"></i> Active</span>
+        {% else %}
+        <span class="sgi-badge sgi-badge-grey">Inactive</span>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--sgi-text-muted);">
+        <span><i class="bi bi-tag"></i> Code: <strong style="color:var(--sgi-text);">{{ item.code }}</strong></span>
+        <span><i class="bi bi-rulers"></i> Unit: <strong style="color:var(--sgi-text);">{{ item.unit }}</strong></span>
+        {% if item.category %}
+        <span><i class="bi bi-folder"></i> Category: <strong style="color:var(--sgi-text);">{{ item.category }}</strong></span>
+        {% endif %}
+        {% if item.min_stock_level %}
+        <span><i class="bi bi-exclamation-triangle"></i> Min Stock: <strong style="color:var(--sgi-text);">{{ item.min_stock_level }}</strong></span>
+        {% endif %}
+        <span><i class="bi bi-calendar3"></i> Added {{ item.created_at|date:"d M Y, h:i A" }}</span>
+        {% if item.created_by %}
+        <span><i class="bi bi-person"></i> Created by: <strong style="color:var(--sgi-text);">{{ item.created_by.get_full_name|default:item.created_by.username }}</strong></span>
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'sgierp:item_edit' item.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+        <i class="bi bi-pencil"></i> Edit
+      </a>
+      <a href="{% url 'sgierp:stock_move' %}?item={{ item.id }}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+        <i class="bi bi-arrow-left-right"></i> Move Stock
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Stock summary by process -->
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-layers"></i></div>
+      Stock by Process
+    </div>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if process_stock %}
+    <table class="sgi-table">
+      <thead>
+        <tr>
+          <th>Process</th>
+          <th>Quantity</th>
+          <th>Assigned To</th>
+          <th>Assigned At</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ps in process_stock %}
+        <tr>
+          <td>
+            <span class="sgi-badge {% if ps.is_completed_process %}sgi-badge-green{% else %}sgi-badge-orange{% endif %}">
+              {{ ps.process_name }}
+            </span>
+          </td>
+          <td><strong>{{ ps.total|floatformat:2 }}</strong> {{ item.unit }}</td>
+          <td>
+            {% if ps.assigned_to %}
+            {{ ps.assigned_to }}
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if ps.assigned_at %}
+            {{ ps.assigned_at|date:"d M Y, h:i A" }}
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'sgierp:stock_move' %}?item={{ item.id }}&process={{ ps.process_id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+              <i class="bi bi-arrow-right-circle"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty">
+      <div class="sgi-empty-icon">📦</div>
+      <h4>No stock in any process</h4>
+      <p>Move stock to this item to see process-wise quantities.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Item History -->
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-clock-history"></i></div>
+      Stock History
+    </div>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if item_history %}
+    <table class="sgi-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Quantity</th>
+          <th>By</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in item_history %}
+        <tr>
+          <td>{{ h.created_at|date:"d M Y, h:i A" }}</td>
+          <td>
+            {% if h.movement_type == 'add' %}
+            <span class="sgi-badge sgi-badge-green">Add</span>
+            {% elif h.movement_type == 'move' %}
+            <span class="sgi-badge sgi-badge-blue">Move</span>
+            {% elif h.movement_type == 'convert' %}
+            <span class="sgi-badge sgi-badge-purple">Convert</span>
+            {% elif h.movement_type == 'dispatch' %}
+            <span class="sgi-badge sgi-badge-red">Dispatch</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-grey">{{ h.movement_type }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if h.from_process %}
+            {{ h.from_process_name }}
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+            {% if h.to_item %}
+            <br><small>{{ h.item_code_snapshot }} {{ h.quantity|floatformat:2 }} {{ h.unit_snapshot }}</small>
+            {% endif %}
+          </td>
+          <td>
+            {% if h.to_process %}
+            {{ h.to_process_name }}
+            {% elif h.to_item %}
+            {{ h.to_item_name_snapshot }}
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ h.quantity|floatformat:2 }}</strong> {{ h.unit_snapshot }}</td>
+          <td>
+            {% if h.performed_by %}
+            {{ h.performed_by.get_full_name|default:h.performed_by.username }}
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if h.remarks %}
+            <small style="color:var(--sgi-text-muted);">{{ h.remarks|truncatewords:10 }}</small>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty">
+      <div class="sgi-empty-icon">📜</div>
+      <h4>No history yet</h4>
+      <p>Stock movements for this item will appear here.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

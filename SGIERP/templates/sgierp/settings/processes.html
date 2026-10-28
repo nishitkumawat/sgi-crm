@@ -1,0 +1,95 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Manufacturing Processes{% endblock %}
+{% block page_title %}Manufacturing Processes{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:settings' %}" class="breadcrumb-parent">Settings</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">Processes</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-diagram-3"></i></div>
+      Manufacturing Processes ({{ processes|length }})
+    </div>
+    <div class="sgi-card-actions">
+      <div class="sgi-card-actions-row">
+        <button onclick="exportTableToExcel('processesTable', 'processes')" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+          <i class="bi bi-download"></i> Export
+        </button>
+      </div>
+      <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+        <i class="bi bi-plus-lg"></i> Add
+      </a>
+    </div>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if processes %}
+    <table class="sgi-table" id="processesTable">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Created By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in processes %}
+        <tr>
+          <td style="color:var(--sgi-text-muted);">{{ p.order }}</td>
+          <td><strong>{{ p.name }}</strong></td>
+          <td>
+            {% if p.is_completed_process %}
+            <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-circle"></i> Completed</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-grey">Process</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.is_active %}
+            <span class="sgi-badge sgi-badge-green">Active</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-grey">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.created_by %}
+            <span style="font-size:12px;">{{ p.created_by.get_full_name|default:p.created_by.username }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:8px;">
+              <a href="{% url 'sgierp:process_edit' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'sgierp:process_delete' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete this process?');">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty" style="padding:30px;">
+      <div class="sgi-empty-icon">⚙️</div>
+      <h4>No processes configured</h4>
+      <p>Add manufacturing workflow stages to track production.</p>
+      <div style="margin-top:16px;">
+        <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> Add Process
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

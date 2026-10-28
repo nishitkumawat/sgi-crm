@@ -1,0 +1,120 @@
+{% extends 'sgierp/base.html' %}
+{% load sgi_tags %}
+{% block title %}Machines{% endblock %}
+{% block page_title %}Machines{% endblock %}
+{% block breadcrumb %}
+<span class="page-title">Machines</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div>
+      Machine Master ({{ machines|length }})
+    </div>
+    <div class="sgi-card-actions">
+      <div class="sgi-card-actions-row">
+        <button onclick="exportTableToExcel('machineTable', 'machines')" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-download"></i> Export
+        </button>
+      </div>
+      <div class="sgi-card-actions-primary">
+        <a href="{% url 'sgierp:machine_create' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> Add Machine
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;">
+      <div class="sgi-input-group" style="flex:1;min-width:200px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="text" class="sgi-input" name="q" value="{{ search }}"
+          placeholder="Code or name..." style="border:none;">
+      </div>
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-funnel"></i> Apply
+      </button>
+      {% if search %}
+      <a href="{% url 'sgierp:machine_list' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-x"></i> Clear
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="sgi-table-wrap">
+    {% if machines %}
+    <table class="sgi-table" id="machineTable">
+      <thead>
+        <tr>
+          <th style="width:48px;"></th>
+          <th>Code</th>
+          <th>Name</th>
+          <th>BOM Components</th>
+          <th>Dispatches</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for machine in machines %}
+        <tr>
+          <td>
+            {% if machine.image %}
+            <img src="{{ machine.image.url }}" class="item-image-thumb" alt="{{ machine.name }}">
+            {% else %}
+            <div class="item-image-placeholder"><i class="bi bi-gear"></i></div>
+            {% endif %}
+          </td>
+          <td><span class="fw-600">{{ machine.code }}</span></td>
+          <td>{{ machine.name }}</td>
+          <td>
+            <span class="sgi-badge sgi-badge-blue">{{ machine.bom_items.count }} components</span>
+          </td>
+          <td>
+            <span class="sgi-badge sgi-badge-grey">{{ dispatch_counts|get_item:machine.id|default:0 }} dispatches</span>
+          </td>
+          <td>
+            {% if machine.is_active %}
+            <span class="sgi-badge sgi-badge-green"><i class="bi bi-circle-fill" style="font-size:7px;"></i> Active</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-grey">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:8px;">
+              <a href="{% url 'sgierp:machine_detail' machine.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{% url 'sgierp:machine_edit' machine.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'sgierp:dispatch_create' %}?machine={{ machine.id }}" class="btn-sgi btn-sgi-primary btn-sgi-icon btn-sgi-sm" title="Dispatch">
+                <i class="bi bi-truck"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty">
+      <div class="sgi-empty-icon">⚙️</div>
+      <h4>No machines found</h4>
+      <p>{% if search %}Try clearing your search.{% else %}Add your first machine to get started.{% endif %}</p>
+      {% if not search %}
+      <div style="margin-top:16px;">
+        <a href="{% url 'sgierp:machine_create' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> Add Machine
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:machine_list' %}" class="breadcrumb-parent">Machines</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ page_title }}</span>
+{% endblock %}
+
+{% block content %}
+<script type="application/json" id="allItemsData">
+[{% for item in items %}{"id":{{ item.id }},"code":"{{ item.code|escapejs }}","name":"{{ item.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]
+</script>
+
+<form method="POST" enctype="multipart/form-data">
+{% csrf_token %}
+<div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start;">
+
+  <div>
+    <div class="sgi-card" style="margin-bottom:16px;">
+      <div class="sgi-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear"></i></div> Machine Details</div>
+      </div>
+      <div class="sgi-card-body">
+        <div class="form-grid">
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="code">Machine Code <span class="required">*</span></label>
+            <input type="text" class="sgi-input" id="code" name="code"
+              value="{% if form_data.code %}{{ form_data.code }}{% elif machine %}{{ machine.code }}{% endif %}"
+              placeholder="Machine Code" required style="text-transform:uppercase;">
+          </div>
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="name">Machine Name <span class="required">*</span></label>
+            <input type="text" class="sgi-input" id="name" name="name"
+              value="{% if form_data.name %}{{ form_data.name }}{% elif machine %}{{ machine.name }}{% endif %}"
+              placeholder="Descriptive name" required>
+          </div>
+        </div>
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="description">Description</label>
+          <textarea class="sgi-textarea" id="description" name="description" placeholder="Optional">{% if form_data.description %}{{ form_data.description }}{% elif machine %}{{ machine.description }}{% endif %}</textarea>
+        </div>
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="machine_image">Machine Image</label>
+          {% if machine and machine.image %}
+          <div style="margin-bottom:8px;">
+            <img src="{{ machine.image.url }}" style="height:70px;border-radius:6px;border:1px solid var(--sgi-border);">
+          </div>
+          {% endif %}
+          <input type="file" class="sgi-input" id="machine_image" name="image" accept="image/*" style="padding:6px;">
+        </div>
+        <div class="sgi-form-group">
+          <label class="sgi-check-label">
+            <input type="checkbox" name="is_active"
+              {% if machine %}{% if machine.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+            Machine is Active
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="sgi-card">
+      <div class="sgi-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-list-ul"></i></div> Bill of Materials</div>
+        <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" id="addBomRow">
+          <i class="bi bi-plus-lg"></i> Add Component
+        </button>
+      </div>
+      <div class="sgi-card-body" style="padding:0;">
+        <table class="bom-table" style="width:100%;">
+          <thead><tr><th style="width:36px;">#</th><th>Item</th><th style="width:120px;">Qty / Machine</th><th style="width:40px;"></th></tr></thead>
+          <tbody id="bomTableBody"></tbody>
+        </table>
+        <input type="hidden" name="bom_data" id="bomData" value="{{ bom_json }}">
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sgi-card">
+      <div class="sgi-card-body">
+        <div style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:16px;line-height:1.6;">
+          Define the components (items) needed to assemble one unit of this machine.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button type="submit" class="btn-sgi btn-sgi-primary" style="justify-content:center;">
+            <i class="bi bi-check-lg"></i> {% if machine %}Save Changes{% else %}Create Machine{% endif %}
+          </button>
+          <a href="{% if machine %}{% url 'sgierp:machine_detail' machine.id %}{% else %}{% url 'sgierp:machine_list' %}{% endif %}"
+            class="btn-sgi btn-sgi-outline" style="justify-content:center;">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+{% endblock %}

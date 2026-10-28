@@ -1,0 +1,6 @@
+.main-footer {
+    display: none !important;
+}
+.login-box .main-footer {
+    display: none !important;
+}

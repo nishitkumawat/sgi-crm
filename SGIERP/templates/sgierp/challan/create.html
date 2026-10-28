@@ -1,0 +1,172 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}New Challan{% endblock %}
+{% block page_title %}New Challan{% endblock %}
+
+{% block extra_css %}
+<style>
+  .item-row { display:grid; grid-template-columns: 2fr 1.5fr 1fr 2fr 40px; gap:10px; align-items:center; margin-bottom:10px; }
+  .remove-btn { color:var(--sgi-danger); cursor:pointer; font-size:18px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-file-earmark-plus"></i></div>
+      New Challan
+    </div>
+  </div>
+
+  <form method="POST" id="challanForm">
+    {% csrf_token %}
+
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="challan_type">Challan Type <span class="required">*</span></label>
+        <select class="sgi-select" id="challan_type" name="challan_type">
+          <option value="outward" {% if form_data.challan_type == 'outward' %}selected{% endif %}>Outward - Sending Material</option>
+          <option value="inward" {% if form_data.challan_type == 'inward' %}selected{% endif %}>Inward - Receiving Material</option>
+        </select>
+      </div>
+
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="date">Date <span class="required">*</span></label>
+        <input type="date" class="sgi-input" id="date" name="date" value="{{ form_data.date }}" required>
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="party_name">Party Name <span class="required">*</span></label>
+      <div class="sgi-input-group">
+        <span class="sgi-input-icon"><i class="bi bi-building"></i></span>
+        <input type="text" class="sgi-input" id="party_name" name="party_name"
+          value="{{ form_data.party_name|default:'' }}" placeholder="Enter company/party name" required>
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="party_address">Party Address</label>
+      <div class="sgi-input-group">
+        <span class="sgi-input-icon"><i class="bi bi-geo-alt"></i></span>
+        <input type="text" class="sgi-input" id="party_address" name="party_address"
+          value="{{ form_data.party_address|default:'' }}" placeholder="Enter address">
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="party_contact">Contact</label>
+      <div class="sgi-input-group">
+        <span class="sgi-input-icon"><i class="bi bi-telephone"></i></span>
+        <input type="text" class="sgi-input" id="party_contact" name="party_contact"
+          value="{{ form_data.party_contact|default:'' }}" placeholder="Enter contact number">
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="assignee">Assign To</label>
+      <div class="sgi-input-group">
+        <span class="sgi-input-icon"><i class="bi bi-person-badge"></i></span>
+        <select class="sgi-select" id="assignee" name="assignee">
+          <option value="">Select Assignee</option>
+          {% for assignee in all_assignees %}
+          <option value="{{ assignee.id }}" {% if form_data.assignee == assignee.id|stringformat:"s" %}selected{% endif %}>{{ assignee.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label">Items <span class="required">*</span></label>
+      <div id="itemsContainer">
+        {% for item_data in items_data %}
+        <div class="item-row">
+          <select class="sgi-select item-select" name="item_id" required>
+            <option value="">Select Item</option>
+            {% for item in all_items %}
+            <option value="{{ item.id }}" {% if item_data.item.id == item.id %}selected{% endif %}>{{ item.code }} - {{ item.name }}</option>
+            {% endfor %}
+          </select>
+          <select class="sgi-select" name="process_id">
+            <option value="">Select Process</option>
+            {% for process in all_processes %}
+            <option value="{{ process.id }}" {% if item_data.process and item_data.process.id == process.id %}selected{% endif %}>{{ process.name }}</option>
+            {% endfor %}
+          </select>
+          <input type="number" class="sgi-input" name="quantity" step="0.01" value="{{ item_data.quantity }}" placeholder="Qty" required>
+          <input type="text" class="sgi-input" name="item_remarks" value="{{ item_data.remarks }}" placeholder="Remarks">
+          <i class="bi bi-x-circle remove-btn" onclick="removeItemRow(this)"></i>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" onclick="addItemRow()" style="margin-top:10px;">
+        <i class="bi bi-plus"></i> Add Item
+      </button>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="remarks">Remarks</label>
+      <textarea class="sgi-input" id="remarks" name="remarks" rows="3"
+        placeholder="Additional notes...">{{ form_data.remarks|default:'' }}</textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-check-lg"></i> Create Challan
+      </button>
+      <a href="{% url 'sgierp:challan_list' %}" class="btn-sgi btn-sgi-outline">
+        Cancel
+      </a>
+    </div>
+  </form>
+</div>
+
+<script>
+let itemCounter = 0;
+
+// Set default date to today
+document.addEventListener('DOMContentLoaded', function() {
+  const dateInput = document.getElementById('date');
+  if (dateInput && !dateInput.value) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+  }
+});
+
+function addItemRow() {
+  const container = document.getElementById('itemsContainer');
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `
+    <select class="sgi-select item-select" name="item_id" required>
+      <option value="">Select Item</option>
+      {% for item in all_items %}
+      <option value="{{ item.id }}">{{ item.code }} - {{ item.name }}</option>
+      {% endfor %}
+    </select>
+    <select class="sgi-select" name="process_id">
+      <option value="">Select Process</option>
+      {% for process in all_processes %}
+      <option value="{{ process.id }}">{{ process.name }}</option>
+      {% endfor %}
+    </select>
+    <input type="number" class="sgi-input" name="quantity" step="0.01" placeholder="Qty" required>
+    <input type="text" class="sgi-input" name="item_remarks" placeholder="Remarks">
+    <i class="bi bi-x-circle remove-btn" onclick="removeItemRow(this)"></i>
+  `;
+  container.appendChild(row);
+}
+
+function removeItemRow(btn) {
+  const container = document.getElementById('itemsContainer');
+  if (container.children.length > 1) {
+    btn.parentElement.remove();
+  }
+}
+
+// Add first item row if empty
+if (document.getElementById('itemsContainer').children.length === 0) {
+  addItemRow();
+}
+</script>
+{% endblock %}

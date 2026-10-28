@@ -1,0 +1,186 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}New Dispatch{% endblock %}
+{% block page_title %}New Dispatch{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:dispatch_list' %}" class="breadcrumb-parent">Dispatch</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">New Dispatch</span>
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{% url 'sgierp:dispatch_create' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
+{% csrf_token %}
+<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;" class="dispatch-form-grid">
+
+  <!-- Left -->
+  <div>
+    <div class="sgi-card" style="margin-bottom:16px;">
+      <div class="sgi-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div> Machine & Count</div>
+      </div>
+      <div class="sgi-card-body">
+        <div class="form-grid">
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="machineSelect">
+              <i class="bi bi-gear"></i> Machine <span class="required">*</span>
+            </label>
+            <select class="sgi-select" id="machineSelect" name="machine_id" required>
+              <option value="">-- Select Machine --</option>
+              {% for m in machines %}
+              <option value="{{ m.id }}" {% if selected_machine and selected_machine.id == m.id %}selected{% endif %}>
+                {{ m.code }} — {{ m.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="machineCount">
+              <i class="bi bi-123"></i> No. of Machines <span class="required">*</span>
+            </label>
+            <div class="sgi-input-group">
+              <span class="sgi-input-icon"><i class="bi bi-hash"></i></span>
+              <input type="number" class="sgi-input" id="machineCount" name="machine_count"
+                value="{{ machine_count|default:1 }}" min="1" step="1" required>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOM preview -->
+    {% if selected_machine and bom_preview %}
+    <div class="sgi-card" style="margin-bottom:16px;">
+      <div class="sgi-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-list-check"></i></div> Materials Check — {{ machine_count }}× {{ selected_machine.name }}</div>
+      </div>
+      <div class="sgi-table-wrap">
+        <table class="bom-table" style="width:100%;">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Per Machine</th>
+              <th>Total Required</th>
+              <th>Available (Completed)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in bom_preview %}
+            <tr>
+              <td>
+                <strong>{{ entry.item.code }}</strong>
+                <span style="color:var(--sgi-text-muted);font-size:12px;"> — {{ entry.item.name }}</span>
+              </td>
+              <td>{{ entry.quantity_required_per_machine|floatformat:2 }}</td>
+              <td><strong>{{ entry.total_required|floatformat:2 }}</strong> {{ entry.item.unit }}</td>
+              <td class="{% if entry.sufficient %}sufficient{% else %}insufficient{% endif %}">
+                {{ entry.available|floatformat:2 }}
+              </td>
+              <td>
+                {% if entry.sufficient %}
+                <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-lg"></i> OK</span>
+                {% else %}
+                <span class="sgi-badge sgi-badge-red"><i class="bi bi-exclamation-triangle"></i> Short</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% elif selected_machine %}
+    <div class="sgi-alert sgi-alert-warning" style="margin-bottom:16px;">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      This machine has no BOM components defined. <a href="{% url 'sgierp:machine_edit' selected_machine.id %}">Edit Machine</a>
+    </div>
+    {% endif %}
+
+    <!-- Dispatch details -->
+    <div class="sgi-card">
+      <div class="sgi-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-truck"></i></div> Dispatch Details</div>
+      </div>
+      <div class="sgi-card-body">
+        <div class="form-grid">
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="customer_name">
+              <i class="bi bi-person"></i> Customer Name
+            </label>
+            <div class="sgi-input-group">
+              <span class="sgi-input-icon"><i class="bi bi-person"></i></span>
+              <input type="text" class="sgi-input" id="customer_name" name="customer_name"
+                value="{{ form_data.customer_name|default:'' }}" placeholder="Optional">
+            </div>
+          </div>
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="dispatch_date">
+              <i class="bi bi-calendar"></i> Dispatch Date & Time
+            </label>
+            <div class="sgi-input-group">
+              <span class="sgi-input-icon"><i class="bi bi-calendar"></i></span>
+              <input type="datetime-local" class="sgi-input" id="dispatch_date" name="dispatch_date"
+                value="{{ now|date:'Y-m-d' }}T{{ now|date:'H:i' }}">
+            </div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="invoice_reference">
+              <i class="bi bi-receipt"></i> Invoice / Reference No.
+            </label>
+            <div class="sgi-input-group">
+              <span class="sgi-input-icon"><i class="bi bi-receipt"></i></span>
+              <input type="text" class="sgi-input" id="invoice_reference" name="invoice_reference"
+                value="{{ form_data.invoice_reference|default:'' }}" placeholder="Optional">
+            </div>
+          </div>
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="remarks">
+              <i class="bi bi-chat-text"></i> Remarks
+            </label>
+            <div class="sgi-input-group">
+              <span class="sgi-input-icon"><i class="bi bi-pencil"></i></span>
+              <input type="text" class="sgi-input" id="remarks" name="remarks"
+                value="{{ form_data.remarks|default:'' }}" placeholder="Optional">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: submit -->
+  <div>
+    <div class="sgi-card">
+      <div class="sgi-card-body">
+        <div style="font-size:13px;color:var(--sgi-text-muted);line-height:1.6;margin-bottom:16px;">
+          Dispatching will <strong>atomically deduct</strong> the required components from completed stock using <strong>FIFO</strong> order.
+          The operation will fail if any component has insufficient completed stock.
+        </div>
+        {% if selected_machine %}
+        <div style="background:var(--sgi-bg);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--sgi-text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Summary</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:13px;">Machine:</span>
+            <span style="font-size:13px;font-weight:700;">{{ selected_machine.code }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-size:13px;">Quantity:</span>
+            <span style="font-size:13px;font-weight:700;">{{ machine_count }} unit{{ machine_count|pluralize }}</span>
+          </div>
+        </div>
+        {% endif %}
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button type="submit" class="btn-sgi btn-sgi-primary" style="justify-content:center;">
+            <i class="bi bi-truck"></i> Confirm Dispatch
+          </button>
+          <a href="{% url 'sgierp:dispatch_list' %}" class="btn-sgi btn-sgi-outline" style="justify-content:center;">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+{% endblock %}

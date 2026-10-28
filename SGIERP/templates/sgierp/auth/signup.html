@@ -1,0 +1,128 @@
+{% extends 'sgierp/base.html' %}
+{% load static %}
+
+{% block title %}Create Account{% endblock %}
+
+{% block auth_content %}
+<div class="sgi-auth-body">
+  <div class="sgi-auth-card" style="max-width:500px;">
+
+    <div class="sgi-auth-header">
+      <img src="{% static 'sgierp/images/logo.png' %}" alt="Shree Gayatri Industries" class="sgi-auth-logo-img">
+      <h1>Create Account</h1>
+      <p>Shree Gayatri Industries</p>
+    </div>
+
+    <div class="sgi-auth-body-inner">
+
+      {% if messages %}
+      {% for message in messages %}
+      <div class="sgi-alert {% if message.tags == 'error' %}sgi-alert-error{% elif message.tags == 'success' %}sgi-alert-success{% else %}sgi-alert-info{% endif %}" style="margin-bottom:14px;">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-triangle-fill{% else %}bi-check-circle-fill{% endif %}"></i>
+        {{ message }}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="{% url 'sgierp:signup' %}">
+        {% csrf_token %}
+
+        <!-- Name row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="first_name">First Name</label>
+            <input type="text" class="sgi-input" id="first_name" name="first_name"
+              value="{{ form_data.first_name|default:'' }}"
+              placeholder="First name" autofocus>
+          </div>
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="last_name">Last Name</label>
+            <input type="text" class="sgi-input" id="last_name" name="last_name"
+              value="{{ form_data.last_name|default:'' }}"
+              placeholder="Last name">
+          </div>
+        </div>
+
+        <!-- Username -->
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="username">Username <span class="required">*</span></label>
+          <div class="sgi-input-group">
+            <span class="sgi-input-icon"><i class="bi bi-person"></i></span>
+            <input type="text" class="sgi-input" id="username" name="username"
+              value="{{ form_data.username|default:'' }}"
+              placeholder="Choose a unique username" required>
+          </div>
+          <div class="sgi-input-hint">This is your login ID. Letters, digits, and underscores only.</div>
+        </div>
+
+        <!-- Email -->
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="email">Email</label>
+          <div class="sgi-input-group">
+            <span class="sgi-input-icon"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="sgi-input" id="email" name="email"
+              value="{{ form_data.email|default:'' }}"
+              placeholder="For password reset OTP">
+          </div>
+        </div>
+
+        <!-- Department & Phone -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="department">Department</label>
+            <input type="text" class="sgi-input" id="department" name="department"
+              value="{{ form_data.department|default:'' }}"
+              placeholder="Department">
+          </div>
+          <div class="sgi-form-group">
+            <label class="sgi-label" for="phone">Phone</label>
+            <input type="text" class="sgi-input" id="phone" name="phone"
+              value="{{ form_data.phone|default:'' }}"
+              placeholder="Optional">
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="password">Password <span class="required">*</span></label>
+          <div class="sgi-input-group">
+            <span class="sgi-input-icon"><i class="bi bi-lock"></i></span>
+            <input type="password" class="sgi-input" id="password" name="password"
+              placeholder="Minimum 8 characters" required>
+            <button type="button" class="sgi-input-icon" data-show-password="password"
+              style="border-left:1px solid var(--sgi-border);cursor:pointer;background:var(--sgi-bg);">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="sgi-form-group">
+          <label class="sgi-label" for="confirm_password">Confirm Password <span class="required">*</span></label>
+          <div class="sgi-input-group">
+            <span class="sgi-input-icon"><i class="bi bi-lock-fill"></i></span>
+            <input type="password" class="sgi-input" id="confirm_password" name="confirm_password"
+              placeholder="Repeat your password" required>
+          </div>
+        </div>
+
+        <!-- Info notice -->
+        <div class="sgi-alert sgi-alert-info" style="margin-bottom:16px;font-size:12.5px;">
+          <i class="bi bi-info-circle-fill"></i>
+          Your account will have <strong>Operator</strong> role by default.
+          An administrator can change your role and permissions after sign-up.
+        </div>
+
+        <button type="submit" class="btn-sgi btn-sgi-primary" style="width:100%;justify-content:center;padding:11px;font-size:15px;">
+          <i class="bi bi-person-plus-fill"></i> Create Account
+        </button>
+
+        <div class="sgi-auth-links" style="margin-top:14px;">
+          Already have an account? <a href="{% url 'sgierp:login' %}">Sign In</a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

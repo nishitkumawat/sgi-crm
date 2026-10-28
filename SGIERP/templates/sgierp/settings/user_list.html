@@ -1,0 +1,59 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}ERP Users{% endblock %}
+{% block page_title %}ERP Users{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:settings' %}" class="breadcrumb-parent">Settings</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">Users</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-people-fill"></i></div> ERP Users ({{ erp_users|length }})</div>
+    <a href="{% url 'sgierp:user_create' %}" class="btn-sgi btn-sgi-primary"><i class="bi bi-plus-lg"></i> Add User</a>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if erp_users %}
+    <table class="sgi-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Department</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in erp_users %}
+        <tr>
+          <td><strong>{{ u.get_full_name|default:"—" }}</strong></td>
+          <td><span class="sgi-badge sgi-badge-grey">{{ u.username }}</span></td>
+          <td style="font-size:12px;">{{ u.email|default:"—" }}</td>
+          <td><span class="sgi-badge sgi-badge-blue">{{ u.erp_profile.get_role_display }}</span></td>
+          <td>{{ u.erp_profile.department|default:"—" }}</td>
+          <td>
+            {% if u.erp_profile.is_erp_active %}
+            <span class="sgi-badge sgi-badge-green">Active</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-grey">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'sgierp:user_edit' u.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty"><h4>No ERP users</h4></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

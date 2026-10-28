@@ -1,0 +1,122 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Completed Stock{% endblock %}
+{% block page_title %}Completed Stock{% endblock %}
+
+{% block content %}
+
+{% if not completed_process %}
+<div class="sgi-card">
+  <div class="sgi-card-body">
+    <div class="sgi-empty">
+      <div class="sgi-empty-icon">⚙️</div>
+      <h4>No Completed Process Configured</h4>
+      <p>Go to Settings and add a process marked as <strong>Completed</strong>.</p>
+      <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary" style="margin-top:14px;">
+        <i class="bi bi-plus-lg"></i> Add Process
+      </a>
+    </div>
+  </div>
+</div>
+{% else %}
+
+<!-- Summary bar -->
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;">
+  <div class="sgi-card">
+    <div class="sgi-card-body" style="text-align:center;padding:18px;">
+      <div style="font-size:28px;font-weight:900;color:var(--sgi-success);">{{ total_items }}</div>
+      <div style="font-size:12px;color:var(--sgi-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">Items with Stock</div>
+    </div>
+  </div>
+  <div class="sgi-card">
+    <div class="sgi-card-body" style="text-align:center;padding:18px;">
+      <div style="font-size:28px;font-weight:900;color:var(--sgi-primary);">{{ total_qty|floatformat:0 }}</div>
+      <div style="font-size:12px;color:var(--sgi-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">Total Finished Units</div>
+    </div>
+  </div>
+  <!-- <div class="sgi-card">
+    <div class="sgi-card-body" style="text-align:center;padding:18px;">
+      <div style="font-size:28px;font-weight:900;color:var(--sgi-orange);">{{ completed_process.name }}</div>
+      <div style="font-size:12px;color:var(--sgi-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">Process Stage</div>
+    </div>
+  </div> -->
+</div>
+
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-check-circle-fill"></i></div>
+      Finished Goods
+    </div>
+    <div class="sgi-card-actions">
+      <div class="sgi-card-actions-row">
+        <button onclick="exportTableToExcel('completedTable', 'completed_stock')" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-download"></i> Export
+        </button>
+        <form method="GET" style="display:flex;gap:8px;align-items:center;">
+          <div class="sgi-input-group" style="border:1.5px solid var(--sgi-border);border-radius:6px;overflow:hidden;">
+            <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+            <input type="text" class="sgi-input" name="q" value="{{ search }}"
+              placeholder="Search items…" style="border:none;width:180px;">
+          </div>
+          <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-sm">Search</button>
+          {% if search %}<a href="{% url 'sgierp:completed_stock' %}" class="btn-sgi btn-sgi-outline btn-sgi-sm"><i class="bi bi-x"></i></a>{% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="sgi-table-wrap">
+    {% if completed_items %}
+    <table class="sgi-table" id="completedTable">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Name</th>
+          <th>Qty Available</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in completed_items %}
+        <tr>
+          <td>
+            <a href="{% url 'sgierp:item_detail' entry.item.id %}" style="color:var(--sgi-primary);font-weight:700;">
+              {{ entry.item.code }}
+            </a>
+          </td>
+          <td>{{ entry.item.name }}</td>
+          <td>
+            <span style="font-size:18px;font-weight:800;color:var(--sgi-success);">
+              {{ entry.total|floatformat:2 }}
+            </span>
+            <span style="color:var(--sgi-text-muted);font-size:12px;"> {{ entry.item.unit }}</span>
+          </td>
+          <td>
+            <div style="display:flex;gap:8px;">
+              <a href="{% url 'sgierp:item_detail' entry.item.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View Item">
+                <i class="bi bi-eye"></i>
+              </a>
+              <!-- <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move Stock">
+                <i class="bi bi-arrow-right-circle"></i>
+              </a> -->
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty">
+      <div class="sgi-empty-icon">📦</div>
+      <h4>No completed stock{% if search %} matching "{{ search }}"{% endif %}</h4>
+      <p>Move stock to the <strong>{{ completed_process.name }}</strong> process to see them here.</p>
+      <a href="{% url 'sgierp:stock_move' %}" class="btn-sgi btn-sgi-primary" style="margin-top:14px;">
+        <i class="bi bi-arrow-right-circle"></i> Move Stock
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

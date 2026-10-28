@@ -1,0 +1,102 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:settings' %}" class="breadcrumb-parent">Settings</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<a href="{% url 'sgierp:settings_users' %}" class="breadcrumb-parent">Users</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ page_title }}</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:620px;">
+<form method="POST">
+{% csrf_token %}
+
+<div class="sgi-card" style="margin-bottom:16px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-person-gear"></i></div> Account Details</div>
+  </div>
+  <div class="sgi-card-body">
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="first_name">First Name</label>
+        <input type="text" class="sgi-input" id="first_name" name="first_name"
+          value="{{ target_user.first_name|default:'' }}" placeholder="First name">
+      </div>
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="last_name">Last Name</label>
+        <input type="text" class="sgi-input" id="last_name" name="last_name"
+          value="{{ target_user.last_name|default:'' }}" placeholder="Last name">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="username">Username <span class="required">*</span></label>
+        <input type="text" class="sgi-input" id="username" name="username"
+          value="{{ target_user.username|default:'' }}" placeholder="Login username" required>
+      </div>
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="email">Email</label>
+        <input type="email" class="sgi-input" id="email" name="email"
+          value="{{ target_user.email|default:'' }}" placeholder="For OTP password reset">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="password">
+          Password {% if not target_user %}<span class="required">*</span>{% endif %}
+        </label>
+        <input type="password" class="sgi-input" id="password" name="password"
+          placeholder="{% if target_user %}Leave blank to keep current{% else %}Min 8 characters{% endif %}"
+          {% if not target_user %}required{% endif %}>
+      </div>
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="phone">Phone</label>
+        <input type="text" class="sgi-input" id="phone" name="phone"
+          value="{{ profile.phone|default:'' }}" placeholder="Optional">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sgi-card" style="margin-bottom:16px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-shield-check"></i></div> Role & Permissions</div>
+  </div>
+  <div class="sgi-card-body">
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="role">Role <span class="required">*</span></label>
+        <select class="sgi-select" id="role" name="role">
+          {% for val, label in roles %}
+          <option value="{{ val }}" {% if profile.role == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="department">Department</label>
+        <input type="text" class="sgi-input" id="department" name="department"
+          value="{{ profile.department|default:'' }}" placeholder="Department">
+      </div>
+    </div>
+    <div class="sgi-form-group">
+      <label class="sgi-check-label">
+        <input type="checkbox" name="is_erp_active"
+          {% if profile.is_erp_active != False %}checked{% endif %}>
+        User can log in to SGIERP
+      </label>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;gap:12px;">
+  <button type="submit" class="btn-sgi btn-sgi-primary">
+    <i class="bi bi-check-lg"></i> {% if target_user %}Save Changes{% else %}Create User{% endif %}
+  </button>
+  <a href="{% url 'sgierp:settings_users' %}" class="btn-sgi btn-sgi-outline">Cancel</a>
+</div>
+</form>
+</div>
+{% endblock %}

@@ -1,0 +1,558 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Move Stock{% endblock %}
+{% block page_title %}Move Stock{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:inventory' %}" class="breadcrumb-parent">Inventory</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">Move Stock</span>
+{% endblock %}
+
+{% block content %}
+<style>
+  .flow-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    background: repeating-linear-gradient(
+      45deg,
+      #f5f5f5,
+      #f5f5f5 10px,
+      #e8e8e8 10px,
+      #e8e8e8 20px
+    );
+    border-radius: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+    border: 1px solid var(--sgi-border);
+  }
+  .flow-step {
+    background: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 140px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  .flow-step-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--sgi-primary-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-size: 20px;
+    color: var(--sgi-primary);
+  }
+  .flow-step-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sgi-text);
+    margin-bottom: 4px;
+  }
+  .flow-step-value {
+    font-size: 11px;
+    color: var(--sgi-text-muted);
+  }
+  .flow-arrow {
+    color: var(--sgi-text-muted);
+    font-size: 24px;
+  }
+  .flow-badge {
+    background: var(--sgi-success);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .autocomplete-wrapper {
+    position: relative;
+  }
+  .autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--sgi-border);
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: none;
+  }
+  .autocomplete-suggestions.show {
+    display: block;
+  }
+  .suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--sgi-border);
+  }
+  .suggestion-item:last-child {
+    border-bottom: none;
+  }
+  .suggestion-item:hover {
+    background: var(--sgi-bg);
+  }
+</style>
+
+<div style="max-width:900px;">
+<form method="POST" action="{% url 'sgierp:stock_move' %}">
+{% csrf_token %}
+
+<!-- Mode Selection -->
+<div class="sgi-card" style="margin-bottom:16px;">
+  <div class="sgi-card-body" style="padding:16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;">
+        <label class="sgi-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+          <input type="checkbox" id="change_unit_toggle" name="change_unit" onchange="toggleConversionMode()" style="width:18px;height:18px;">
+          <span style="font-size:13px;font-weight:500;">Change Unit (Convert Item)</span>
+        </label>
+
+      </div>
+      <div id="mode_indicator" style="padding:8px 12px;background:var(--sgi-primary-bg);border-radius:4px;font-size:12px;font-weight:600;color:var(--sgi-primary);">
+        <i class="bi bi-arrow-right-arrow-left"></i> Normal Move
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Form -->
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-arrow-left-right"></i></div>
+      Stock Movement
+    </div>
+  </div>
+  <div class="sgi-card-body">
+
+    <!-- Item Selection with Visual Indicator -->
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="item_search">
+        <i class="bi bi-box-seam"></i> Source Item <span class="required">*</span>
+      </label>
+      <div class="autocomplete-wrapper">
+        <div class="sgi-input-group">
+          <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+          <input type="text" class="sgi-input" id="item_search" 
+            placeholder="Search item code or name..." autocomplete="off">
+        </div>
+        <input type="hidden" id="item_id" name="item_id" required>
+        <input type="hidden" id="source_process_id" name="source_process_id">
+        <div class="autocomplete-suggestions" id="item_suggestions"></div>
+      </div>
+    </div>
+
+    <!-- Conversion Mode Fields -->
+    <div id="conversion_fields" style="display:none;">
+      <div style="background:var(--sgi-info-bg);border:1px solid var(--sgi-border);border-radius:8px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <i class="bi bi-info-circle" style="color:var(--sgi-info);font-size:18px;"></i>
+          <span style="font-size:13px;font-weight:600;color:var(--sgi-info);">Conversion Mode</span>
+        </div>
+        
+        <div class="sgi-form-group" style="margin-bottom:12px;">
+          <label class="sgi-label" for="target_item_id">
+            <i class="bi bi-box"></i> Convert To Item <span class="required">*</span>
+          </label>
+          <select class="sgi-select" id="target_item_id" name="target_item_id">
+            <option value="">-- Select Target Item --</option>
+            {% for item_data in items %}
+            <option value="{{ item_data.item.id }}">
+              {{ item_data.item.code }} — {{ item_data.item.name }} ({{ item_data.item.unit }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="sgi-form-group" style="margin-bottom:0;">
+          <label class="sgi-label" for="target_quantity">
+            <i class="bi bi-calculator"></i> Target Quantity <span class="required">*</span>
+          </label>
+          <input type="number" class="sgi-input" id="target_quantity" name="target_quantity"
+            min="0.01" step="0.01" placeholder="Quantity of target item to produce">
+        </div>
+      </div>
+    </div>
+
+    <!-- Destination Process -->
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="to_process_search">
+        <i class="bi bi-diagram-3"></i> To Process <span class="required">*</span>
+      </label>
+      <div class="autocomplete-wrapper">
+        <div class="sgi-input-group">
+          <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+          <input type="text" class="sgi-input" id="to_process_search" 
+            placeholder="Search destination process..." autocomplete="off">
+        </div>
+        <input type="hidden" id="to_process_id" name="to_process_id" required>
+        <div class="autocomplete-suggestions" id="to_process_suggestions"></div>
+      </div>
+      {% if completed_process %}
+      <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" style="margin-top:6px;" onclick="selectCompletedProcess()">
+        <i class="bi bi-check-circle"></i> Quick: Move to {{ completed_process.name }}
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Assignee -->
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="to_assigned">
+        <i class="bi bi-person"></i> Assign To (Destination)
+      </label>
+      <select class="sgi-select" id="to_assigned" name="to_assigned">
+        <option value="">-- No Assignment --</option>
+        {% for a in assignees %}
+        <option value="{{ a.id }}">{{ a.name }}{% if a.department %} ({{ a.department }}){% endif %}</option>
+        {% endfor %}
+      </select>
+      <small style="color:var(--sgi-text-muted);font-size:12px;display:none;" id="assignee_hint">
+        <i class="bi bi-info-circle"></i> Assignee is not required for Completed process
+      </small>
+    </div>
+
+    <!-- Quantity -->
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="quantity">
+        <i class="bi bi-123"></i> Quantity <span class="required">*</span>
+      </label>
+      <div class="sgi-input-group">
+        <span class="sgi-input-icon"><i class="bi bi-hash"></i></span>
+        <input type="number" class="sgi-input" id="quantity" name="quantity"
+          value="{{ form_data.quantity|default:'' }}"
+          min="0.01" step="0.01" required placeholder="Units to move" oninput="updateQuantityDisplay()">
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="notes">
+        <i class="bi bi-chat-text"></i> Notes
+      </label>
+      <div class="sgi-input-group">
+        <span class="sgi-input-icon"><i class="bi bi-pencil"></i></span>
+        <input type="text" class="sgi-input" id="notes" name="notes"
+          value="{{ form_data.notes|default:'' }}"
+          placeholder="Optional notes">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-arrow-right-circle-fill"></i> Move Stock
+      </button>
+      <a href="{% url 'sgierp:inventory' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-x-circle"></i> Cancel
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Visual Flow Indicator -->
+<div class="flow-visual">
+  <div class="flow-step">
+    <div class="flow-step-icon"><i class="bi bi-box-seam"></i></div>
+    <div class="flow-step-label">Source</div>
+    <div class="flow-step-value" id="source_display">Select Item</div>
+  </div>
+  <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+  <div class="flow-step">
+    <div class="flow-step-icon"><i class="bi bi-diagram-3"></i></div>
+    <div class="flow-step-label">Process</div>
+    <div class="flow-step-value" id="process_display">--</div>
+  </div>
+  <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+  <div class="flow-step">
+    <div class="flow-step-icon"><i class="bi bi-123"></i></div>
+    <div class="flow-step-label">Quantity</div>
+    <div class="flow-step-value" id="quantity_display">--</div>
+  </div>
+  <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+  <div class="flow-step">
+    <div class="flow-step-icon"><i class="bi bi-diagram-3-fill"></i></div>
+    <div class="flow-step-label">To Process</div>
+    <div class="flow-step-value" id="to_process_display">--</div>
+  </div>
+  <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+  <div class="flow-step">
+    <div class="flow-step-icon"><i class="bi bi-person"></i></div>
+    <div class="flow-step-label">Assignee</div>
+    <div class="flow-step-value" id="assignee_display">--</div>
+  </div>
+  <div class="flow-badge" id="result_badge" style="display:none;">Moved</div>
+</div>
+</form>
+</div>
+
+<script>
+// Data arrays accessible to all functions
+const itemsData = [
+  {% for item_data in items %}
+    {% for entry in item_data.stock_entries %}
+    { 
+      id: {{ item_data.item.id }}, 
+      code: "{{ item_data.item.code }}", 
+      name: "{{ item_data.item.name }}", 
+      unit: "{{ item_data.item.unit }}",
+      processId: {{ entry.process.id }},
+      processName: "{{ entry.process.name }}",
+      quantity: {{ entry.quantity }}
+    },
+    {% endfor %}
+  {% endfor %}
+];
+
+const processesData = [
+  {% for p in processes %}
+  { id: {{ p.id }}, name: "{{ p.name }}" {% if p.is_completed_process %}, isCompleted: true{% endif %} },
+  {% endfor %}
+];
+
+function toggleConversionMode() {
+  const toggle = document.getElementById('change_unit_toggle');
+  const conversionFields = document.getElementById('conversion_fields');
+  const modeIndicator = document.getElementById('mode_indicator');
+  const assigneeSelect = document.getElementById('to_assigned');
+  
+  if (toggle.checked) {
+    conversionFields.style.display = 'block';
+    modeIndicator.innerHTML = '<i class="bi bi-arrow-repeat"></i> Conversion Mode';
+    modeIndicator.style.background = 'var(--sgi-info-bg)';
+    modeIndicator.style.color = 'var(--sgi-info)';
+    assigneeSelect.disabled = false;
+  } else {
+    conversionFields.style.display = 'none';
+    modeIndicator.innerHTML = '<i class="bi bi-arrow-right-arrow-left"></i> Normal Move';
+    modeIndicator.style.background = 'var(--sgi-primary-bg)';
+    modeIndicator.style.color = 'var(--sgi-primary)';
+    updateAssigneeDropdown();
+  }
+}
+
+function filterItems() {
+  // This function is no longer needed with autocomplete
+}
+
+function updateSourceProcess() {
+  const itemId = document.getElementById('item_id').value;
+  const sourceProcessIdInput = document.getElementById('source_process_id');
+  
+  const selectedItem = itemsData.find(item => item.id == itemId);
+  
+  if (selectedItem) {
+    sourceProcessIdInput.value = selectedItem.processId;
+    
+    // Update visual display
+    document.getElementById('source_display').textContent = `${selectedItem.code} — ${selectedItem.name}`;
+    document.getElementById('process_display').textContent = selectedItem.processName;
+    document.getElementById('quantity_display').textContent = `${selectedItem.quantity} ${selectedItem.unit}`;
+  } else {
+    sourceProcessIdInput.value = '';
+    document.getElementById('source_display').textContent = 'Select Item';
+    document.getElementById('process_display').textContent = '--';
+    document.getElementById('quantity_display').textContent = '--';
+  }
+}
+
+function updateQuantityDisplay() {
+  const quantity = document.getElementById('quantity').value;
+  if (quantity) {
+    document.getElementById('quantity_display').textContent = quantity;
+  }
+}
+
+function updateAssigneeDropdown() {
+  const toProcessId = document.getElementById('to_process_id').value;
+  const assigneeSelect = document.getElementById('to_assigned');
+  const assigneeHint = document.getElementById('assignee_hint');
+  
+  const selectedProcess = processesData.find(p => p.id == toProcessId);
+  
+  if (toProcessId && selectedProcess) {
+    const isCompleted = selectedProcess.isCompleted;
+    if (isCompleted) {
+      assigneeSelect.disabled = true;
+      assigneeSelect.value = '';
+      assigneeHint.style.display = 'block';
+    } else {
+      assigneeSelect.disabled = false;
+      assigneeHint.style.display = 'none';
+    }
+    
+    // Update visual display
+    document.getElementById('to_process_display').textContent = selectedProcess.name;
+  } else {
+    assigneeSelect.disabled = false;
+    assigneeHint.style.display = 'none';
+    document.getElementById('to_process_display').textContent = '--';
+  }
+}
+
+// Update assignee display when selection changes
+document.getElementById('to_assigned').addEventListener('change', function() {
+  const assigneeSelect = this;
+  const selectedOption = assigneeSelect.options[assigneeSelect.selectedIndex];
+  if (selectedOption.value) {
+    document.getElementById('assignee_display').textContent = selectedOption.text;
+  } else {
+    document.getElementById('assignee_display').textContent = '--';
+  }
+});
+
+function selectCompletedProcess() {
+  const completedProcessId = '{{ completed_process.id|default:"" }}';
+  const toProcessSearch = document.getElementById('to_process_search');
+  const toProcessIdInput = document.getElementById('to_process_id');
+  
+  if (completedProcessId) {
+    toProcessIdInput.value = completedProcessId;
+    const completedProcess = processesData.find(p => p.id == completedProcessId);
+    if (completedProcess) {
+      toProcessSearch.value = completedProcess.name;
+    }
+    updateAssigneeDropdown();
+  }
+}
+
+// Auto-select on page load if item is pre-selected
+document.addEventListener('DOMContentLoaded', function() {
+  // Check if item is pre-selected from URL parameter
+  {% if selected_item and selected_stock_entry %}
+  const preselectedItemId = {{ selected_item.id }};
+  const preselectedProcessId = {{ selected_stock_entry.process.id }};
+  const preselectedItem = itemsData.find(item => item.id == preselectedItemId && item.processId == preselectedProcessId);
+  
+  if (preselectedItem) {
+    const itemSearch = document.getElementById('item_search');
+    const itemIdInput = document.getElementById('item_id');
+    const sourceProcessIdInput = document.getElementById('source_process_id');
+    
+    itemSearch.value = `${preselectedItem.code} — ${preselectedItem.name} (${preselectedItem.quantity} ${preselectedItem.unit} @ ${preselectedItem.processName})`;
+    itemIdInput.value = preselectedItem.id;
+    sourceProcessIdInput.value = preselectedItem.processId;
+    updateSourceProcess();
+  }
+  {% endif %}
+  
+  updateSourceProcess();
+  updateAssigneeDropdown();
+  
+  // Item autocomplete (source item with process)
+  const itemSearch = document.getElementById('item_search');
+  const itemSuggestions = document.getElementById('item_suggestions');
+  const itemIdInput = document.getElementById('item_id');
+  const sourceProcessIdInput = document.getElementById('source_process_id');
+  
+  function showItemSuggestions(filterValue = '') {
+    const value = filterValue.toLowerCase();
+    itemSuggestions.innerHTML = '';
+    
+    const filtered = itemsData.filter(item => 
+      item.code.toLowerCase().includes(value) || 
+      item.name.toLowerCase().includes(value) ||
+      item.processName.toLowerCase().includes(value)
+    );
+    
+    if (filtered.length === 0) {
+      itemSuggestions.classList.remove('show');
+      return;
+    }
+    
+    filtered.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      div.innerHTML = `
+        <div class="code">${item.code}</div>
+        <div class="name">${item.name}</div>
+        <div class="unit">${item.quantity} ${item.unit} @ ${item.processName}</div>
+      `;
+      div.addEventListener('click', function() {
+        itemSearch.value = `${item.code} — ${item.name} (${item.quantity} ${item.unit} @ ${item.processName})`;
+        itemIdInput.value = item.id;
+        sourceProcessIdInput.value = item.processId;
+        itemSuggestions.classList.remove('show');
+        updateSourceProcess();
+      });
+      itemSuggestions.appendChild(div);
+    });
+    
+    itemSuggestions.classList.add('show');
+  }
+  
+  itemSearch.addEventListener('input', function() {
+    showItemSuggestions(this.value);
+  });
+  
+  itemSearch.addEventListener('focus', function() {
+    if (!itemIdInput.value) {
+      showItemSuggestions('');
+    }
+  });
+  
+  // Process autocomplete
+  const toProcessSearch = document.getElementById('to_process_search');
+  const toProcessSuggestions = document.getElementById('to_process_suggestions');
+  const toProcessIdInput = document.getElementById('to_process_id');
+  
+  function showProcessSuggestions(filterValue = '') {
+    const value = filterValue.toLowerCase();
+    toProcessSuggestions.innerHTML = '';
+    
+    const filtered = processesData.filter(process => 
+      process.name.toLowerCase().includes(value)
+    );
+    
+    if (filtered.length === 0) {
+      toProcessSuggestions.classList.remove('show');
+      return;
+    }
+    
+    filtered.forEach(process => {
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      div.innerHTML = `
+        <div class="name">${process.name}${process.isCompleted ? ' <i class="bi bi-check-circle-fill" style="color:var(--sgi-success);"></i>' : ''}</div>
+      `;
+      div.addEventListener('click', function() {
+        toProcessSearch.value = process.name;
+        toProcessIdInput.value = process.id;
+        toProcessSuggestions.classList.remove('show');
+        updateAssigneeDropdown();
+      });
+      toProcessSuggestions.appendChild(div);
+    });
+    
+    toProcessSuggestions.classList.add('show');
+  }
+  
+  toProcessSearch.addEventListener('input', function() {
+    showProcessSuggestions(this.value);
+  });
+  
+  toProcessSearch.addEventListener('focus', function() {
+    if (!toProcessIdInput.value) {
+      showProcessSuggestions('');
+    }
+  });
+  
+  // Close suggestions when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.autocomplete-wrapper')) {
+      itemSuggestions.classList.remove('show');
+      toProcessSuggestions.classList.remove('show');
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Challan {{ challan.challan_number }}{% endblock %}
+{% block page_title %}Challan {{ challan.challan_number }}{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-file-earmark-text"></i></div>
+      Challan {{ challan.challan_number }}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'sgierp:challan_print' challan.id %}" target="_blank" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+        <i class="bi bi-printer"></i> Print
+      </a>
+      <a href="{% url 'sgierp:challan_list' %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+        <i class="bi bi-arrow-left"></i> Back
+      </a>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Challan Number</div>
+      <div style="font-size:14px;font-weight:600;">{{ challan.challan_number }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Date</div>
+      <div style="font-size:14px;font-weight:600;">{{ challan.date|date:"d M Y" }}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Type</div>
+      <div style="font-size:14px;font-weight:600;">
+        <span class="sgi-badge {% if challan.challan_type == 'outward' %}sgi-badge-orange{% else %}sgi-badge-green{% endif %}">
+          {{ challan.get_challan_type_display }}
+        </span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Created By</div>
+      <div style="font-size:14px;font-weight:600;">
+        {% if challan.created_by %}
+        {{ challan.created_by.get_full_name|default:challan.created_by.username }}
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="sgi-card" style="margin-bottom:20px;">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title">
+        <div class="card-icon"><i class="bi bi-building"></i></div>
+        Party Details
+      </div>
+    </div>
+    <div style="padding:16px;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Party Name</div>
+        <div style="font-size:14px;font-weight:600;">{{ challan.party_name }}</div>
+      </div>
+      {% if challan.party_address %}
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Address</div>
+        <div style="font-size:13px;">{{ challan.party_address }}</div>
+      </div>
+      {% endif %}
+      {% if challan.party_contact %}
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Contact</div>
+        <div style="font-size:13px;">{{ challan.party_contact }}</div>
+      </div>
+      {% endif %}
+      {% if challan.assignee %}
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Assigned To</div>
+        <div style="font-size:13px;">{{ challan.assignee.name }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="sgi-card">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title">
+        <div class="card-icon"><i class="bi bi-boxes"></i></div>
+        Items ({{ items|length }})
+      </div>
+    </div>
+    <div class="sgi-table-wrap">
+      {% if items %}
+      <table class="sgi-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Process</th>
+            <th>Quantity</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>
+              <a href="{% url 'sgierp:item_detail' item.item.id %}" style="color:var(--sgi-primary);font-weight:600;">
+                {{ item.item.code }}
+              </a>
+              <span style="color:var(--sgi-text-muted);"> — {{ item.item.name }}</span>
+            </td>
+            <td>
+              {% if item.process %}
+              {{ item.process.name }}
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td><strong>{{ item.quantity|floatformat:2 }}</strong> {{ item.unit }}</td>
+            <td>{{ item.remarks|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty" style="padding:30px;">
+        <h4>No items in this challan</h4>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if challan.remarks %}
+  <div class="sgi-card" style="margin-top:20px;">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title">
+        <div class="card-icon"><i class="bi bi-chat-text"></i></div>
+        Remarks
+      </div>
+    </div>
+    <div style="padding:16px;">
+      {{ challan.remarks }}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

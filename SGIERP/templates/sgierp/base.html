@@ -1,0 +1,194 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="SGIERP — Shree Gayatri Industries Inventory & Manufacturing Management">
+  <title>{% block title %}SGIERP{% endblock %} | Shree Gayatri Industries</title>
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="{% static 'sgierp/images/logo.png' %}">
+  <!-- SGIERP CSS -->
+  <link rel="stylesheet" href="{% static 'sgierp/css/style.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if sgi_user %}
+<!-- ===== LAYOUT ===== -->
+<div class="sgi-layout">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sgi-sidebar" id="sgiSidebar">
+    <a href="{% url 'sgierp:dashboard' %}" class="sidebar-brand">
+      <img src="{% static 'sgierp/images/logo.png' %}" alt="Shree Gayatri Industries" class="sidebar-logo" style="border-radius:10px; ">
+      <!-- <i class="bi bi-lightning-charge-fill sgi-icon"></i> -->
+      <span></span>
+    </a>
+
+    <nav class="sidebar-nav">
+      <a href="{% url 'sgierp:dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'dashboard_alt' %}active{% endif %}">
+        <i class="bi bi-grid-1x2-fill sgi-icon"></i>
+        <span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-section">INVENTORY</div>
+
+      <a href="{% url 'sgierp:item_catalog' %}" class="sidebar-link {% if request.resolver_match.url_name == 'item_catalog' or 'item_' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-box-seam sgi-icon"></i>
+        <span>Item Catalog</span>
+      </a>
+      <a href="{% url 'sgierp:inventory' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inventory' %}active{% endif %}">
+        <i class="bi bi-boxes sgi-icon"></i>
+        <span>Inventory</span>
+      </a>
+      <a href="{% url 'sgierp:stock_move' %}" class="sidebar-link {% if request.resolver_match.url_name == 'stock_move' %}active{% endif %}">
+        <i class="bi bi-arrow-left-right sgi-icon"></i>
+        <span>Move Stock</span>
+      </a>
+      <a href="{% url 'sgierp:stock_history' %}" class="sidebar-link {% if request.resolver_match.url_name == 'stock_history' %}active{% endif %}">
+        <i class="bi bi-clock-history sgi-icon"></i>
+        <span>History</span>
+      </a>
+      <a href="{% url 'sgierp:completed_stock' %}" class="sidebar-link {% if request.resolver_match.url_name == 'completed_stock' %}active{% endif %}">
+        <i class="bi bi-check-circle-fill sgi-icon"></i>
+        <span>Completed Stock</span>
+      </a>
+      <a href="{% url 'sgierp:process_wise_stock' %}" class="sidebar-link {% if request.resolver_match.url_name == 'process_wise_stock' %}active{% endif %}">
+        <i class="bi bi-diagram-3 sgi-icon"></i>
+        <span>Stock by Process</span>
+      </a>
+      <a href="{% url 'sgierp:assignee_wise_stock' %}" class="sidebar-link {% if request.resolver_match.url_name == 'assignee_wise_stock' %}active{% endif %}">
+        <i class="bi bi-person-workspace sgi-icon"></i>
+        <span>Stock by Assignee</span>
+      </a>
+
+      <div class="sidebar-section">PRODUCTION</div>
+
+      <a href="{% url 'sgierp:machine_list' %}" class="sidebar-link {% if 'machine' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-gear-wide-connected sgi-icon"></i>
+        <span>Machines</span>
+      </a>
+      <a href="{% url 'sgierp:dispatch_list' %}" class="sidebar-link {% if 'dispatch' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-truck sgi-icon"></i>
+        <span>Dispatch</span>
+      </a>
+
+      <!-- <div class="sidebar-section">DOCUMENTS</div>
+
+      <a href="{% url 'sgierp:challan_list' %}" class="sidebar-link {% if 'challan' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-file-earmark-text sgi-icon"></i>
+        <span>Challans</span>
+      </a> -->
+
+      <div class="sidebar-section">ADMIN</div>
+      <a href="{% url 'sgierp:settings' %}" class="sidebar-link {% if 'settings' in request.resolver_match.url_name or 'process' in request.resolver_match.url_name or 'user' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-sliders sgi-icon"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar-sidebar">{{ sgi_user.get_full_name|first|default:sgi_user.username|first|upper }}</div>
+        <div class="user-info-sidebar">
+          <div class="user-name-sidebar">{{ sgi_user.get_full_name|default:sgi_user.username }}</div>
+          <div class="user-role-sidebar">{{ sgi_profile.get_role_display }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="sgi-main" id="sgiMain">
+
+    <!-- Topbar -->
+    <header class="sgi-topbar">
+      <div class="topbar-left">
+        <button class="topbar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+          <i class="bi bi-list"></i>
+        </button>
+        <div class="topbar-breadcrumb">
+          {% block breadcrumb %}
+          <span class="page-title">{% block page_title %}SGIERP{% endblock %}</span>
+          {% endblock %}
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="topbar-actions">
+          <a href="{% url 'sgierp:inventory' %}?status=active" class="topbar-btn" title="Inventory">
+            <i class="bi bi-boxes"></i>
+          </a>
+          <a href="{% url 'sgierp:stock_move' %}" class="topbar-btn" title="Move Stock">
+            <i class="bi bi-arrow-left-right"></i>
+          </a>
+
+          <!-- User dropdown -->
+          <div class="sgi-dropdown">
+            <div class="topbar-avatar" data-dropdown="userDropdown">
+              {{ sgi_user.get_full_name|first|default:sgi_user.username|first|upper }}
+            </div>
+            <div class="sgi-dropdown-menu" id="userDropdown">
+              <div style="padding:10px 14px;border-bottom:1px solid var(--sgi-border)">
+                <div style="font-weight:700;font-size:13px;">{{ sgi_user.get_full_name|default:sgi_user.username }}</div>
+                <div style="font-size:11px;color:var(--sgi-text-muted);">{{ sgi_user.email|default:"No email" }}</div>
+              </div>
+              <div class="sgi-dropdown-divider"></div>
+              <a href="{% url 'sgierp:logout' %}" class="sgi-dropdown-item danger">
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="sgi-content" id="sgiContent">
+
+      <!-- Messages -->
+      {% if messages %}
+      <div style="margin-bottom:16px;">
+        {% for message in messages %}
+        <div class="sgi-alert
+          {% if message.tags == 'success' %}sgi-alert-success
+          {% elif message.tags == 'error' %}sgi-alert-error
+          {% elif message.tags == 'warning' %}sgi-alert-warning
+          {% else %}sgi-alert-info{% endif %}">
+          <i class="bi
+            {% if message.tags == 'success' %}bi-check-circle-fill
+            {% elif message.tags == 'error' %}bi-exclamation-triangle-fill
+            {% elif message.tags == 'warning' %}bi-exclamation-circle-fill
+            {% else %}bi-info-circle-fill{% endif %}"></i>
+          {{ message }}
+          <button class="alert-close">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</div>
+
+<!-- Sidebar overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+{% else %}
+<!-- Unauthenticated layout -->
+{% block auth_content %}{% endblock %}
+{% endif %}
+
+<!-- Bootstrap Icons are loaded via CDN above -->
+<script src="{% static 'sgierp/js/sgi.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

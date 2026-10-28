@@ -1,0 +1,143 @@
+{% extends 'sgierp/base.html' %}
+{% load sgi_tags %}
+{% block title %}Dispatch History{% endblock %}
+{% block page_title %}Dispatch History{% endblock %}
+{% block breadcrumb %}
+<span class="page-title">Dispatch History</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-content-scrollable">
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-truck"></i></div>
+      All Dispatches ({{ page_obj.paginator.count }})
+    </div>
+    <div class="sgi-card-actions">
+      <div class="sgi-card-actions-row">
+        <button onclick="exportTableToExcel('dispatchTable', 'dispatches')" class="btn-sgi btn-sgi-outline">
+          <i class="bi bi-download"></i> Export
+        </button>
+      </div>
+      <div class="sgi-card-actions-primary">
+        <a href="{% url 'sgierp:dispatch_create' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> New Dispatch
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;">
+      <div class="sgi-input-group" style="flex:1;min-width:200px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="text" class="sgi-input" name="q" value="{{ search }}"
+          placeholder="Customer, machine, invoice..." style="border:none;">
+      </div>
+      <select class="sgi-select" name="machine" style="min-width:160px;">
+        <option value="">All Machines</option>
+        {% for m in machines %}
+        <option value="{{ m.id }}" {% if machine_filter == m.id|stringformat:"s" %}selected{% endif %}>{{ m.code }} — {{ m.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="date" class="sgi-input" name="date_from" value="{{ date_from }}" style="min-width:140px;">
+      <input type="date" class="sgi-input" name="date_to" value="{{ date_to }}" style="min-width:140px;">
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-funnel"></i> Apply
+      </button>
+      {% if search or machine_filter or date_from or date_to %}
+      <a href="{% url 'sgierp:dispatch_list' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-x"></i> Clear
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="sgi-card-body">
+    <div class="sgi-table-wrap">
+      {% if page_obj %}
+      <table class="sgi-table" id="dispatchTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Machine</th>
+            <th>Date</th>
+            <th>Units</th>
+            <th>Customer</th>
+            <th>Invoice</th>
+            <th>By</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in page_obj %}
+          <tr>
+            <td><strong>#{{ d.id }}</strong></td>
+            <td>
+              <a href="{% url 'sgierp:machine_detail' d.machine.id %}" style="color:var(--sgi-primary);font-weight:600;">
+                {{ d.machine.code }}
+              </a>
+              <span style="color:var(--sgi-text-muted);font-size:12px;"> {{ d.machine.name }}</span>
+            </td>
+            <td><span class="time-badge">{{ d.dispatch_date|date:"d M Y, h:i A" }}</span></td>
+            <td><span class="sgi-badge sgi-badge-orange">{{ d.machine_count }} unit{{ d.machine_count|pluralize }}</span></td>
+            <td>{{ d.customer_name|default:"—" }}</td>
+            <td>{{ d.invoice_reference|default:"—" }}</td>
+            <td style="font-size:12px;color:var(--sgi-text-muted);">
+              {% if d.dispatched_by %}
+                {{ d.dispatched_by.get_full_name|default:d.dispatched_by.username }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'sgierp:dispatch_detail' d.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty">
+        <div class="sgi-empty-icon">🚚</div>
+        <h4>No dispatches found</h4>
+        <p>{% if search or machine_filter %}Try clearing filters.{% else %}Create your first dispatch.{% endif %}</p>
+        {% if not search %}
+        <div style="margin-top:16px;">
+          <a href="{% url 'sgierp:dispatch_create' %}" class="btn-sgi btn-sgi-primary">
+            <i class="bi bi-plus-lg"></i> New Dispatch
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="sgi-pagination">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&q={{ search }}&machine={{ machine_filter }}&date_from={{ date_from }}&date_to={{ date_to }}" class="sgi-page-btn">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if page_obj.number == num %}
+      <span class="sgi-page-btn active">{{ num }}</span>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+      <a href="?page={{ num }}&q={{ search }}&machine={{ machine_filter }}&date_from={{ date_from }}&date_to={{ date_to }}" class="sgi-page-btn">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&q={{ search }}&machine={{ machine_filter }}&date_from={{ date_from }}&date_to={{ date_to }}" class="sgi-page-btn">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

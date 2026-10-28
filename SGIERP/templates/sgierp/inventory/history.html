@@ -1,0 +1,161 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Stock History{% endblock %}
+{% block page_title %}Stock History{% endblock %}
+
+{% block content %}
+<div class="sgi-content-scrollable">
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-clock-history"></i></div>
+      Stock History
+    </div>
+    <div class="sgi-card-actions">
+      <button onclick="exportTableToExcel('historyTable', 'stock_history')" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-download"></i> Export
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;">
+      <div class="sgi-input-group" style="flex:1;min-width:200px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="text" class="sgi-input" name="q" value="{{ search }}"
+          placeholder="Item code or name..." style="border:none;">
+      </div>
+      <select class="sgi-select" name="type" style="min-width:160px;">
+        <option value="">All Types</option>
+        <option value="initial" {% if movement_type == 'initial' %}selected{% endif %}>Initial Stock</option>
+        <option value="move" {% if movement_type == 'move' %}selected{% endif %}>Stock Movement</option>
+        <option value="dispatch" {% if movement_type == 'dispatch' %}selected{% endif %}>Dispatch</option>
+        <option value="adjustment" {% if movement_type == 'adjustment' %}selected{% endif %}>Adjustment</option>
+      </select>
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-funnel"></i> Apply
+      </button>
+      {% if search or movement_type %}
+      <a href="{% url 'sgierp:stock_history' %}" class="btn-sgi btn-sgi-outline">
+        <i class="bi bi-x"></i> Clear
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="sgi-card-body">
+    <div class="sgi-table-wrap">
+      {% if history %}
+      <table class="sgi-table" id="historyTable">
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Type</th>
+            <th>Item</th>
+            <th>From Process</th>
+            <th>To Process</th>
+            <th>Quantity</th>
+            <th>From Assignee</th>
+            <th>To Assignee</th>
+            <th>Performed By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in history %}
+          <tr>
+            <td>
+              <div style="font-size:13px;font-weight:600;">
+                {{ entry.created_at|date:"d M Y" }}
+              </div>
+              <div style="font-size:12px;color:var(--sgi-text-muted);">
+                {{ entry.created_at|time:"h:i A" }}
+              </div>
+            </td>
+            <td>
+              <span class="sgi-badge
+                {% if entry.movement_type == 'initial' %}sgi-badge-blue
+                {% elif entry.movement_type == 'move' %}sgi-badge-orange
+                {% elif entry.movement_type == 'dispatch' %}sgi-badge-red
+                {% else %}sgi-badge-gray{% endif %}"
+                style="font-size:11px;text-transform:capitalize;">
+                {{ entry.get_movement_type_display }}
+              </span>
+            </td>
+            <td>
+              <div style="font-size:12px;color:var(--sgi-text-muted);">{{ entry.item_code_snapshot }}</div>
+              <div style="font-weight:600;">{{ entry.item_name_snapshot }}</div>
+            </td>
+            <td>
+              {% if entry.from_process_name %}
+              <span  style="font-size:12px;">{{ entry.from_process_name }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <span  style="font-size:12px;">{{ entry.to_process_name }}</span>
+            </td>
+            <td>
+              <strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.unit_snapshot }}
+            </td>
+            <td>
+              {% if entry.from_assignee_name %}
+              <span style="color:var(--sgi-primary);">{{ entry.from_assignee_name }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.to_assignee_name %}
+              <span style="color:var(--sgi-success);">{{ entry.to_assignee_name }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.performed_by %}
+              <span style="font-size:12px;">{{ entry.performed_by.get_full_name|default:entry.performed_by.username }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty">
+        <div class="sgi-empty-icon">📋</div>
+        <h4>No history found</h4>
+        <p>{% if search or movement_type %}Try clearing the filters.{% else %}Stock movements will appear here as you perform operations.{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if history.has_other_pages %}
+  <div style="display:flex;justify-content:center;gap:8px;padding:16px;">
+    {% if history.has_previous %}
+    <a href="?page=1{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
+       class="btn-sgi btn-sgi-outline btn-sgi-sm">« First</a>
+    <a href="?page={{ history.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
+       class="btn-sgi btn-sgi-outline btn-sgi-sm">‹ Prev</a>
+    {% endif %}
+
+    <span style="display:flex;align-items:center;gap:8px;font-size:13px;">
+      Page {{ history.number }} of {{ history.paginator.num_pages }}
+    </span>
+
+    {% if history.has_next %}
+    <a href="?page={{ history.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
+       class="btn-sgi btn-sgi-outline btn-sgi-sm">Next ›</a>
+    <a href="?page={{ history.paginator.num_pages }}{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
+       class="btn-sgi btn-sgi-outline btn-sgi-sm">Last »</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

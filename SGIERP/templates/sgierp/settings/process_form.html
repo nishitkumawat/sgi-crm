@@ -1,0 +1,78 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:settings' %}" class="breadcrumb-parent">Settings</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<a href="{% url 'sgierp:settings_processes' %}" class="breadcrumb-parent">Processes</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ page_title }}</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;">
+<form method="POST">
+{% csrf_token %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-diagram-3"></i></div>
+      Process Details
+    </div>
+  </div>
+  <div class="sgi-card-body">
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="name">Process Name <span class="required">*</span></label>
+      <input type="text" class="sgi-input" id="name" name="name"
+        value="{{ process.name|default:'' }}" required
+        placeholder="Process Name">
+      <div class="sgi-input-hint">Enter each stage in your manufacturing workflow.</div>
+    </div>
+
+    <div class="form-grid">
+      <div class="sgi-form-group">
+        <label class="sgi-label" for="order">Display Order</label>
+        <input type="number" class="sgi-input" id="order" name="order"
+          value="{{ process.order|default:0 }}" min="0" step="1">
+        <div class="sgi-input-hint">Lower = appears first in lists.</div>
+      </div>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="description">Description</label>
+      <textarea class="sgi-textarea" id="description" name="description"
+        placeholder="Optional">{{ process.description|default:'' }}</textarea>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-check-label">
+        <input type="checkbox" name="is_active"
+          {% if process.is_active != False %}checked{% endif %}>
+        Process is Active
+      </label>
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-check-label">
+        <input type="checkbox" name="is_completed_process"
+          {% if process.is_completed_process %}checked{% endif %}>
+        This is the <strong>Completed</strong> process (finished goods)
+      </label>
+      <div class="sgi-input-hint" style="margin-top:6px;">
+        Only one process can be marked as Completed.
+        Stock in this stage is used for machine dispatches.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:8px;">
+      <button type="submit" class="btn-sgi btn-sgi-primary">
+        <i class="bi bi-check-lg"></i> Save Process
+      </button>
+      <a href="{% url 'sgierp:settings_processes' %}" class="btn-sgi btn-sgi-outline">Cancel</a>
+    </div>
+  </div>
+</div>
+</form>
+</div>
+{% endblock %}

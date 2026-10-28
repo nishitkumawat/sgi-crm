@@ -1,0 +1,230 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;gap:20px;">
+
+  <!-- Processes -->
+  <div class="sgi-card">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title">
+        <div class="card-icon"><i class="bi bi-diagram-3"></i></div>
+        Manufacturing Processes
+      </div>
+      <div class="sgi-card-actions">
+        <div class="sgi-card-actions-row">
+          <button onclick="exportTableToExcel('processesTable', 'processes')" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+            <i class="bi bi-download"></i> Export
+          </button>
+        </div>
+        <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+          <i class="bi bi-plus-lg"></i> Add
+        </a>
+      </div>
+    </div>
+    <div class="sgi-table-wrap">
+      {% if processes %}
+      <table class="sgi-table" id="processesTable">
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Created By</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in processes %}
+          <tr>
+            <td style="color:var(--sgi-text-muted);">{{ p.order }}</td>
+            <td><strong>{{ p.name }}</strong></td>
+            <td>
+              {% if p.is_completed_process %}
+              <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-circle"></i> Completed</span>
+              {% else %}
+              <span class="sgi-badge sgi-badge-grey">Process</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.is_active %}
+              <span class="sgi-badge sgi-badge-green">Active</span>
+              {% else %}
+              <span class="sgi-badge sgi-badge-grey">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.created_by %}
+              <span style="font-size:12px;">{{ p.created_by.get_full_name|default:p.created_by.username }}</span>
+              <div style="font-size:11px;color:var(--sgi-text-muted);">{{ p.created_at|date:"d M Y, h:i A" }}</div>
+              {% else %}
+              <span style="font-size:12px;color:var(--sgi-text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:8px;">
+                <a href="{% url 'sgierp:process_edit' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'sgierp:process_delete' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete process {{ p.name }}? This cannot be undone.');" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty" style="padding:30px;">
+        <h4>No processes yet</h4>
+        <p>Add your manufacturing workflow stages.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Assignees -->
+  <div class="sgi-card">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title">
+        <div class="card-icon"><i class="bi bi-person-badge"></i></div>
+        Assignees
+      </div>
+      <div class="sgi-card-actions">
+        <div class="sgi-card-actions-row">
+          <button onclick="exportTableToExcel('assigneesTable', 'assignees')" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+            <i class="bi bi-download"></i> Export
+          </button>
+        </div>
+        <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+          <i class="bi bi-plus-lg"></i> Add Assignee
+        </a>
+      </div>
+    </div>
+    <div class="sgi-table-wrap">
+      {% if assignees %}
+      <table class="sgi-table" id="assigneesTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Created By</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assignees %}
+          <tr>
+            <td><strong>{{ a.name }}</strong></td>
+            <td>
+              {% if a.department %}
+              <span class="sgi-badge sgi-badge-blue">{{ a.department }}</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.is_active %}
+              <span class="sgi-badge sgi-badge-green">Active</span>
+              {% else %}
+              <span class="sgi-badge sgi-badge-grey">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.created_by %}
+              <span style="font-size:12px;">{{ a.created_by.get_full_name|default:a.created_by.username }}</span>
+              <div style="font-size:11px;color:var(--sgi-text-muted);">{{ a.created_at|date:"d M Y, h:i A" }}</div>
+              {% else %}
+              <span style="font-size:12px;color:var(--sgi-text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:8px;">
+                <a href="{% url 'sgierp:assignee_edit' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'sgierp:assignee_delete' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete assignee {{ a.name }}? This cannot be undone.');" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty" style="padding:30px;">
+        <h4>No assignees yet</h4>
+        <p>Add workers/staff who can be assigned stock.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Users -->
+  <div class="sgi-card">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title">
+        <div class="card-icon"><i class="bi bi-people"></i></div>
+        ERP Users
+      </div>
+      <div class="sgi-card-actions">
+        <div class="sgi-card-actions-row">
+          <button onclick="exportTableToExcel('usersTable', 'erp_users')" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+            <i class="bi bi-download"></i> Export
+          </button>
+        </div>
+        <a href="{% url 'sgierp:user_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+          <i class="bi bi-plus-lg"></i> Add User
+        </a>
+      </div>
+    </div>
+    <div class="sgi-table-wrap">
+      {% if erp_users %}
+      <table class="sgi-table" id="usersTable">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in erp_users %}
+          <tr>
+            <td>
+              <div style="font-weight:600;">{{ u.get_full_name|default:u.username }}</div>
+              <div style="font-size:12px;color:var(--sgi-text-muted);">{{ u.username }}</div>
+            </td>
+            <td><span class="sgi-badge sgi-badge-blue">{{ u.erp_profile.get_role_display }}</span></td>
+            <td>
+              {% if u.erp_profile.is_erp_active %}
+              <span class="sgi-badge sgi-badge-green">Active</span>
+              {% else %}
+              <span class="sgi-badge sgi-badge-grey">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'sgierp:user_edit' u.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty" style="padding:30px;">
+        <h4>No ERP users yet</h4>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

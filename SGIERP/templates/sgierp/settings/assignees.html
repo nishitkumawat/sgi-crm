@@ -1,0 +1,93 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Assignees{% endblock %}
+{% block page_title %}Assignees{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:settings' %}" class="breadcrumb-parent">Settings</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">Assignees</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-person-badge"></i></div>
+      Assignees ({{ assignees|length }})
+    </div>
+    <div class="sgi-card-actions">
+      <div class="sgi-card-actions-row">
+        <button onclick="exportTableToExcel('assigneesTable', 'assignees')" class="btn-sgi btn-sgi-outline btn-sgi-sm">
+          <i class="bi bi-download"></i> Export
+        </button>
+      </div>
+      <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+        <i class="bi bi-plus-lg"></i> Add Assignee
+      </a>
+    </div>
+  </div>
+  <div class="sgi-table-wrap">
+    {% if assignees %}
+    <table class="sgi-table" id="assigneesTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Status</th>
+          <th>Created By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignees %}
+        <tr>
+          <td><strong>{{ a.name }}</strong></td>
+          <td>
+            {% if a.department %}
+            <span class="sgi-badge sgi-badge-blue">{{ a.department }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a.is_active %}
+            <span class="sgi-badge sgi-badge-green">Active</span>
+            {% else %}
+            <span class="sgi-badge sgi-badge-grey">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a.created_by %}
+            <span style="font-size:12px;">{{ a.created_by.get_full_name|default:a.created_by.username }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:8px;">
+              <a href="{% url 'sgierp:assignee_edit' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'sgierp:assignee_delete' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete this assignee?');">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="sgi-empty" style="padding:30px;">
+      <div class="sgi-empty-icon">👥</div>
+      <h4>No assignees yet</h4>
+      <p>Add workers/staff who can be assigned stock.</p>
+      <div style="margin-top:16px;">
+        <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary">
+          <i class="bi bi-plus-lg"></i> Add Assignee
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
