@@ -20,11 +20,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const imagePreview = document.getElementById('imagePreview');
   const previewImage = document.getElementById('imagePreviewContent');
+  let imageZoom = 1;
+  const setImageZoom = (zoom) => {
+    imageZoom = Math.max(0.5, Math.min(3, zoom));
+    imagePreview?.style.setProperty('--image-preview-zoom', imageZoom);
+  };
+  document.getElementById('imageZoomIn')?.addEventListener('click', () => setImageZoom(imageZoom + 0.25));
+  document.getElementById('imageZoomOut')?.addEventListener('click', () => setImageZoom(imageZoom - 0.25));
+  document.getElementById('imageZoomReset')?.addEventListener('click', () => setImageZoom(1));
   const closeImagePreview = () => {
     imagePreview?.classList.remove('active');
     imagePreview?.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('image-preview-open');
     if (previewImage) previewImage.src = '';
+    setImageZoom(1);
   };
   document.addEventListener('click', function (event) {
     const thumbnail = event.target.closest('.item-image-thumb');
@@ -32,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
       event.preventDefault();
       previewImage.src = thumbnail.currentSrc || thumbnail.src;
       previewImage.alt = thumbnail.alt || 'Enlarged image';
+      setImageZoom(1);
       imagePreview.classList.add('active');
       imagePreview.setAttribute('aria-hidden', 'false');
       document.body.classList.add('image-preview-open');

@@ -289,7 +289,7 @@ def item_create(request):
                         category=category,
                         min_stock_level=float(min_stock_level) if min_stock_level else None,
                         is_active=is_active,
-                        created_by=request.user if request.user.is_authenticated else None
+                        created_by=user,
                     )
                     if 'image' in request.FILES:
                         # Compress image before saving

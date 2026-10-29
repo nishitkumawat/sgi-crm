@@ -198,6 +198,11 @@
 
 <!-- Image preview -->
 <div class="image-preview" id="imagePreview" aria-hidden="true">
+  <div class="image-preview-controls" aria-label="Image zoom controls">
+    <button type="button" id="imageZoomOut" aria-label="Zoom out" title="Zoom out"><i class="bi bi-dash-lg"></i></button>
+    <button type="button" id="imageZoomReset" aria-label="Reset zoom" title="Reset zoom"><i class="bi bi-arrows-angle-contract"></i></button>
+    <button type="button" id="imageZoomIn" aria-label="Zoom in" title="Zoom in"><i class="bi bi-plus-lg"></i></button>
+  </div>
   <button type="button" class="image-preview-close" id="imagePreviewClose" aria-label="Close image preview"><i class="bi bi-x-lg"></i></button>
   <img class="image-preview-content" id="imagePreviewContent" alt="">
 </div>

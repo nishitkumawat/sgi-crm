@@ -775,7 +775,16 @@ body {
 .image-preview-content {
   display: block; max-width: min(92vw, 1200px); max-height: 88vh;
   object-fit: contain; border-radius: 8px; box-shadow: 0 16px 56px rgba(0,0,0,.4);
+  transform: scale(var(--image-preview-zoom, 1)); transition: transform .15s ease;
 }
+.image-preview-controls {
+  position: absolute; top: 18px; left: 22px; display: flex; gap: 8px; z-index: 1;
+}
+.image-preview-controls button {
+  width: 42px; height: 42px; border: 0; border-radius: 50%;
+  color: #fff; background: rgba(255,255,255,.16); font-size: 18px; cursor: pointer;
+}
+.image-preview-controls button:hover { background: rgba(255,255,255,.28); }
 .image-preview-close {
   position: absolute; top: 18px; right: 22px; width: 44px; height: 44px;
   border: 0; border-radius: 50%; color: #fff; background: rgba(255,255,255,.16);
