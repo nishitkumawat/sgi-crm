@@ -9,7 +9,7 @@ from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_us
 from SGIERP.models import Process, ERPUserProfile, Assignee, ERPConfig
 
 
-@sgi_admin_required
+@sgi_login_required
 def settings_view(request):
     """Main settings page — tabs for processes, users, etc."""
     user = get_sgi_user(request)
@@ -23,7 +23,13 @@ def settings_view(request):
     # Check which settings page is being requested
     url_name = request.resolver_match.url_name
 
-    if url_name == 'settings_processes':
+    if url_name in ('inventory_setup', 'settings_processes', 'settings_assignees') and user.erp_profile.role != 'admin':
+        return redirect('sgierp:dashboard')
+
+    if url_name == 'inventory_setup':
+        template = 'sgierp/inventory/setup.html'
+        context = {'processes': processes, 'assignees': assignees}
+    elif url_name == 'settings_processes':
         template = 'sgierp/settings/processes.html'
         context = {
             'processes': processes,
@@ -35,13 +41,12 @@ def settings_view(request):
         }
     else:
         # Landing page
-        config = ERPConfig.get_solo()
         template = 'sgierp/settings/landing.html'
         context = {
             'processes': processes,
             'erp_users': erp_users,
             'assignees': assignees,
-            'erp_config': config,
+            'erp_config': user.erp_profile,
         }
 
     return render(request, template, context)
@@ -295,16 +300,20 @@ def assignee_delete(request, assignee_id):
     return redirect('sgierp:settings_assignees')
 
 
-@sgi_admin_required
+@sgi_login_required
 def save_erp_config(request):
-    """Save ERP app-wide configuration (default rows per page, etc.)."""
+    """Save display preferences for the signed-in ERP user."""
     if request.method == 'POST':
         default_per_page = request.POST.get('default_per_page', '20')
         valid_values = [c[0] for c in ERPConfig.PER_PAGE_CHOICES]
         if default_per_page not in valid_values:
             default_per_page = '20'
-        config = ERPConfig.get_solo()
-        config.default_per_page = default_per_page
-        config.save()
-        messages.success(request, f'Settings saved. Default rows per page set to {default_per_page}.')
-    return redirect('sgierp:settings')
+        user = get_sgi_user(request)
+        profile = user.erp_profile
+        profile.default_per_page = default_per_page
+        theme = request.POST.get('primary_theme', 'orange')
+        valid_themes = [choice[0] for choice in ERPConfig.THEME_CHOICES]
+        profile.primary_theme = theme if theme in valid_themes else 'orange'
+        profile.save(update_fields=['default_per_page', 'primary_theme'])
+        messages.success(request, f'Your display settings were saved. Default rows per page: {default_per_page}.')
+        return redirect('sgierp:settings')

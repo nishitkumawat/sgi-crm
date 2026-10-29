@@ -41,6 +41,7 @@ urlpatterns = [
     path('inventory/groups/', item_groups, name='item_groups'),
     path('inventory/by-process/', process_wise_stock, name='process_wise_stock'),
     path('inventory/by-assignee/', assignee_wise_stock, name='assignee_wise_stock'),
+    path('inventory/setup/', settings_view, name='inventory_setup'),
 
     # ---- Machines ----
     path('machines/', machine_list, name='machine_list'),

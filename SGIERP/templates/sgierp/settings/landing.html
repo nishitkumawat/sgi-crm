@@ -20,6 +20,14 @@
         <option value="100" {% if erp_config.default_per_page == '100' %}selected{% endif %}>100 rows</option>
         <option value="500" {% if erp_config.default_per_page == '500' %}selected{% endif %}>500 rows</option>
       </select>
+      <label for="primaryTheme" class="sgi-label" style="margin:0 0 0 12px;">Main theme color</label>
+      <select id="primaryTheme" class="sgi-select" name="primary_theme" style="min-width:140px;">
+        <option value="orange" {% if erp_config.primary_theme == 'orange' %}selected{% endif %}>Orange</option>
+        <option value="blue" {% if erp_config.primary_theme == 'blue' %}selected{% endif %}>Blue</option>
+        <option value="green" {% if erp_config.primary_theme == 'green' %}selected{% endif %}>Green</option>
+        <option value="purple" {% if erp_config.primary_theme == 'purple' %}selected{% endif %}>Purple</option>
+        <option value="red" {% if erp_config.primary_theme == 'red' %}selected{% endif %}>Red</option>
+      </select>
       <button type="submit" class="btn-sgi btn-sgi-primary btn-sgi-sm"><i class="bi bi-check-lg"></i> Save</button>
     </form>
     <div class="sgi-input-hint" style="margin-top:8px;">This applies to all list pages on initial load.</div>
@@ -27,6 +35,7 @@
 </div>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;margin:0 auto;">
+  {% comment %}
   <!-- Processes Card -->
   <a href="{% url 'sgierp:settings_processes' %}" style="text-decoration:none;">
     <div class="sgi-card" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
@@ -59,6 +68,8 @@
     </div>
   </a>
 
+  {% endcomment %}
+  {% if sgi_profile.role == 'admin' %}
   <!-- Users Card -->
   <a href="{% url 'sgierp:settings_users' %}" style="text-decoration:none;">
     <div class="sgi-card" style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
@@ -74,6 +85,7 @@
       </div>
     </div>
   </a>
+  {% endif %}
 </div>
 
 <style>

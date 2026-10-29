@@ -15,10 +15,11 @@ from SGIERP.models import Item, Process, ItemProcess, Assignee, StockHistory, ER
 from SGIERP.services import add_initial_stock, move_stock, get_completed_process
 
 
-def _get_default_per_page():
+def _get_default_per_page(request):
     """Return the app-configured default rows per page."""
     try:
-        return ERPConfig.get_solo().default_per_page
+        user = get_sgi_user(request)
+        return user.erp_profile.default_per_page if user and hasattr(user, 'erp_profile') else '20'
     except Exception:
         return '20'
 
@@ -55,7 +56,7 @@ def item_catalog(request):
     search = request.GET.get('q', '').strip()
     category_filter = request.GET.get('category', '')
     status_filter = request.GET.get('status', 'active')
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
 
     items_qs = Item.objects.all()
 
@@ -73,7 +74,7 @@ def item_catalog(request):
     items_qs = items_qs.order_by('code')
 
     # Pagination
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
     if per_page == 'all':
         items = items_qs.all()
         page_obj = None
@@ -120,7 +121,7 @@ def inventory_list(request):
     process_filter = request.GET.get('process', '')
     status_filter = request.GET.get('status', 'active')
     process_status = request.GET.get('process_status', 'non_completed')  # Default to non-completed
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
 
     # Get all items with stock - optimize
     entries_qs = ItemProcess.objects.filter(quantity__gt=0).select_related(
@@ -153,7 +154,7 @@ def inventory_list(request):
     entries_qs = entries_qs.order_by('item__code', 'process__order', 'process__name')
 
     # Pagination
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
     if per_page == 'all':
         entries = entries_qs.all()
         page_obj = None
@@ -466,7 +467,7 @@ def item_detail(request, item_id):
     item = get_object_or_404(Item, id=item_id)
     user = get_sgi_user(request)
     completed = get_completed_process()
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
 
     # Process-wise stock summary for this item
     process_stock = []
@@ -811,7 +812,7 @@ def completed_stock(request):
     total_items = len(all_completed_items)
     total_qty = sum(entry['total'] for entry in all_completed_items)
 
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
     if per_page == 'all':
         completed_items = all_completed_items
         page_obj = None
@@ -848,7 +849,7 @@ def stock_history(request):
     """Stock History page — all stock movements and assignments."""
     search = request.GET.get('q', '').strip()
     movement_type = request.GET.get('type', '')
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
 
     history_qs = StockHistory.objects.select_related(
         'item', 'from_process', 'to_process', 'performed_by'

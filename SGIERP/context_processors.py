@@ -21,8 +21,20 @@ def sgi_context(request):
     try:
         from SGIERP.models import ERPConfig
         config = ERPConfig.get_solo()
-        context['erp_config'] = config
-        context['default_per_page'] = config.default_per_page
+        profile = context.get('sgi_profile')
+        context['erp_config'] = profile or config
+        context['default_per_page'] = profile.default_per_page if profile else '20'
+        themes = {
+            'orange': ('#E65100', '#FF6D00', '#BF360C', '#FFF3E0'),
+            'blue': ('#1565C0', '#1E88E5', '#0D47A1', '#E3F2FD'),
+            'green': ('#2E7D32', '#43A047', '#1B5E20', '#E8F5E9'),
+            'purple': ('#6A1B9A', '#8E24AA', '#4A148C', '#F3E5F5'),
+            'red': ('#C62828', '#E53935', '#8E0000', '#FFEBEE'),
+        }
+        selected_theme = profile.primary_theme if profile else 'orange'
+        theme = themes.get(selected_theme, themes['orange'])
+        context['primary_theme'] = selected_theme
+        context['primary_theme_css'] = f'--sgi-primary:{theme[0]};--sgi-primary-light:{theme[1]};--sgi-primary-dark:{theme[2]};--sgi-primary-bg:{theme[3]};'
     except Exception:
         context['default_per_page'] = '20'
 

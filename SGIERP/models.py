@@ -475,6 +475,8 @@ class ERPUserProfile(models.Model):
     department = models.CharField(max_length=100, blank=True, default='')
     phone = models.CharField(max_length=20, blank=True, default='')
     is_erp_active = models.BooleanField(default=True)
+    default_per_page = models.CharField(max_length=10, default='20')
+    primary_theme = models.CharField(max_length=20, default='orange')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -516,6 +518,14 @@ class ERPConfig(models.Model):
         default='20',
         help_text='Default number of rows to load on list pages'
     )
+    THEME_CHOICES = [
+        ('orange', 'Orange'),
+        ('blue', 'Blue'),
+        ('green', 'Green'),
+        ('purple', 'Purple'),
+        ('red', 'Red'),
+    ]
+    primary_theme = models.CharField(max_length=20, choices=THEME_CHOICES, default='orange')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="{% static 'sgierp/css/style.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body style="{{ primary_theme_css|default:'' }}">
 
 {% if sgi_user %}
 <!-- ===== LAYOUT ===== -->
@@ -66,6 +66,10 @@
       <a href="{% url 'sgierp:assignee_wise_stock' %}" class="sidebar-link {% if request.resolver_match.url_name == 'assignee_wise_stock' %}active{% endif %}">
         <i class="bi bi-person-workspace sgi-icon"></i>
         <span>Stock by Assignee</span>
+      </a>
+      <a href="{% url 'sgierp:inventory_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inventory_setup' or request.resolver_match.url_name == 'settings_processes' or request.resolver_match.url_name == 'settings_assignees' %}active{% endif %}">
+        <i class="bi bi-diagram-3-fill sgi-icon"></i>
+        <span>Processes & Assignees</span>
       </a>
 
       <div class="sidebar-section">PRODUCTION</div>

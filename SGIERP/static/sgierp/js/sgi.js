@@ -39,6 +39,10 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
+// Pages restored with the browser back/forward cache do not fire DOMContentLoaded.
+window.addEventListener('pageshow', hidePageLoader);
+window.addEventListener('popstate', hidePageLoader);
+
 // ---- Sidebar Toggle ----
 document.addEventListener('DOMContentLoaded', function () {
 
