@@ -7,8 +7,15 @@ from django.db.models import Sum, Q
 from django.utils import timezone
 
 from SGIERP.decorators import sgi_login_required, get_sgi_user
-from SGIERP.models import Machine, MachineDispatch, MachineBOM, ItemProcess
+from SGIERP.models import Machine, MachineDispatch, MachineBOM, ItemProcess, ERPConfig
 from SGIERP.services import dispatch_machine, get_completed_process
+
+
+def _get_default_per_page():
+    try:
+        return ERPConfig.get_solo().default_per_page
+    except Exception:
+        return '20'
 
 
 @sgi_login_required
@@ -20,35 +27,58 @@ def dispatch_list(request):
     machine_filter = request.GET.get('machine', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
+    per_page = request.GET.get('per_page', _get_default_per_page())
 
-    dispatches = MachineDispatch.objects.select_related(
+    dispatches_qs = MachineDispatch.objects.select_related(
         'machine', 'dispatched_by'
     ).prefetch_related('components__item')
 
     if search:
-        dispatches = dispatches.filter(
+        dispatches_qs = dispatches_qs.filter(
             Q(machine__name__icontains=search) |
             Q(customer_name__icontains=search) |
             Q(invoice_reference__icontains=search)
         )
     if machine_filter:
-        dispatches = dispatches.filter(machine_id=machine_filter)
+        dispatches_qs = dispatches_qs.filter(machine_id=machine_filter)
     if date_from:
-        dispatches = dispatches.filter(dispatch_date__date__gte=date_from)
+        dispatches_qs = dispatches_qs.filter(dispatch_date__date__gte=date_from)
     if date_to:
-        dispatches = dispatches.filter(dispatch_date__date__lte=date_to)
+        dispatches_qs = dispatches_qs.filter(dispatch_date__date__lte=date_to)
 
-    dispatches = dispatches.order_by('-dispatch_date')
+    dispatches_qs = dispatches_qs.order_by('-dispatch_date')
 
-    paginator = Paginator(dispatches, 20)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
+    # Pagination
+    if per_page == 'all':
+        dispatches = dispatches_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = dispatches.count()
+        total_count = dispatches.count()
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(dispatches_qs, per_page_int)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        dispatches = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1
+        end_index = min(page_obj.number * per_page_int, paginator.count)
+        total_count = paginator.count
 
     machines = Machine.objects.filter(is_active=True).order_by('code')
 
     context = {
+        'dispatches': dispatches,
         'page_obj': page_obj,
         'machines': machines,
         'search': search,
+        'machine_filter': machine_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
         'machine_filter': machine_filter,
         'date_from': date_from,
         'date_to': date_to,

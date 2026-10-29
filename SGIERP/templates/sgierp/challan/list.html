@@ -53,7 +53,7 @@
   <!-- Table -->
   <div class="sgi-card-body">
     <div class="sgi-table-wrap">
-      {% if page_obj %}
+      {% if challans %}
       <table class="sgi-table" id="challanTable">
         <thead>
           <tr>
@@ -67,7 +67,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for challan in page_obj %}
+          {% for challan in challans %}
           <tr>
             <td><strong>{{ challan.challan_number }}</strong></td>
             <td>{{ challan.date|date:"d M Y" }}</td>
@@ -107,30 +107,12 @@
       </div>
       {% endif %}
     </div>
-  </div>
 
-  <!-- Pagination -->
-  {% if page_obj.has_other_pages %}
-  <div style="display:flex;justify-content:center;gap:8px;padding:16px;">
-    {% if page_obj.has_previous %}
-    <a href="?page=1{% if search %}&q={{ search }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if challan_type %}&type={{ challan_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">« First</a>
-    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if challan_type %}&type={{ challan_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">‹ Prev</a>
-    {% endif %}
-
-    <span style="display:flex;align-items:center;gap:8px;font-size:13px;">
-      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-    </span>
-
-    {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if challan_type %}&type={{ challan_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">Next ›</a>
-    <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&q={{ search }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if challan_type %}&type={{ challan_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">Last »</a>
+    <!-- Pagination -->
+    {% if total_count > 0 %}
+    {% include 'sgierp/components/pagination.html' %}
     {% endif %}
   </div>
-  {% endif %}
 </div>
 </div>
 {% endblock %}

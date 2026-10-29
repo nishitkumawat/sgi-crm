@@ -7,10 +7,46 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.core.exceptions import ValidationError
+from PIL import Image
+import io
 
 from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
-from SGIERP.models import Item, Process, ItemProcess, Assignee, StockHistory
+from SGIERP.models import Item, Process, ItemProcess, Assignee, StockHistory, ERPConfig
 from SGIERP.services import add_initial_stock, move_stock, get_completed_process
+
+
+def _get_default_per_page():
+    """Return the app-configured default rows per page."""
+    try:
+        return ERPConfig.get_solo().default_per_page
+    except Exception:
+        return '20'
+
+
+def compress_image(image_file, max_size_kb=500, quality=85):
+    """Compress image to reduce file size while maintaining quality."""
+    img = Image.open(image_file)
+
+    # Convert to RGB if necessary (for PNG with transparency)
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGB')
+
+    # Create a BytesIO object to save the compressed image
+    output = io.BytesIO()
+
+    # Save with compression
+    img.save(output, format='JPEG', quality=quality, optimize=True)
+
+    # Check if file size is still too large and reduce quality if needed
+    output.seek(0)
+    while output.tell() > max_size_kb * 1024 and quality > 10:
+        quality -= 5
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=quality, optimize=True)
+        output.seek(0)
+
+    output.seek(0)
+    return output
 
 
 @sgi_login_required
@@ -19,6 +55,7 @@ def item_catalog(request):
     search = request.GET.get('q', '').strip()
     category_filter = request.GET.get('category', '')
     status_filter = request.GET.get('status', 'active')
+    per_page = request.GET.get('per_page', _get_default_per_page())
 
     items_qs = Item.objects.all()
 
@@ -33,7 +70,25 @@ def item_catalog(request):
     elif status_filter:
         items_qs = items_qs.filter(is_active=True)
 
-    items = items_qs.order_by('code')
+    items_qs = items_qs.order_by('code')
+
+    # Pagination
+    per_page = request.GET.get('per_page', _get_default_per_page())
+    if per_page == 'all':
+        items = items_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = items.count()
+        total_count = items.count()
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(items_qs, per_page_int)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        items = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1
+        end_index = min(page_obj.number * per_page_int, paginator.count)
+        total_count = paginator.count
 
     # Get unique categories for filter - optimize
     categories = Item.objects.filter(is_active=True).values_list('category', flat=True).distinct()
@@ -46,6 +101,11 @@ def item_catalog(request):
         'category_filter': category_filter,
         'status_filter': status_filter,
         'page_title': 'Item Catalog',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/inventory/catalog.html', context)
 
@@ -60,6 +120,7 @@ def inventory_list(request):
     process_filter = request.GET.get('process', '')
     status_filter = request.GET.get('status', 'active')
     process_status = request.GET.get('process_status', 'non_completed')  # Default to non-completed
+    per_page = request.GET.get('per_page', _get_default_per_page())
 
     # Get all items with stock - optimize
     entries_qs = ItemProcess.objects.filter(quantity__gt=0).select_related(
@@ -81,7 +142,7 @@ def inventory_list(request):
         entries_qs = entries_qs.filter(item__is_active=False)
     elif status_filter:
         entries_qs = entries_qs.filter(item__is_active=True)
-    
+
     # Filter by process status (completed/non-completed)
     completed = get_completed_process()
     if process_status == 'completed' and completed:
@@ -89,7 +150,25 @@ def inventory_list(request):
     elif process_status == 'non_completed' and completed:
         entries_qs = entries_qs.exclude(process=completed)
 
-    entries = entries_qs.order_by('item__code', 'process__order', 'process__name')
+    entries_qs = entries_qs.order_by('item__code', 'process__order', 'process__name')
+
+    # Pagination
+    per_page = request.GET.get('per_page', _get_default_per_page())
+    if per_page == 'all':
+        entries = entries_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = entries.count()
+        total_count = entries.count()
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(entries_qs, per_page_int)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        entries = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1
+        end_index = min(page_obj.number * per_page_int, paginator.count)
+        total_count = paginator.count
 
     # Get all processes for filter dropdown - optimize
     processes = Process.objects.filter(is_active=True).order_by('order', 'name').only('id', 'name', 'order')
@@ -102,6 +181,11 @@ def inventory_list(request):
         'status_filter': status_filter,
         'process_status': process_status,
         'page_title': 'Inventory',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/inventory/list.html', context)
 
@@ -185,6 +269,14 @@ def item_create(request):
             messages.error(request, 'Code and Name are required.')
         else:
             try:
+                # Validate and compress image
+                if 'image' in request.FILES:
+                    image_file = request.FILES['image']
+                    if image_file.size > 2.5 * 1024 * 1024:  # 2.5MB
+                        messages.error(request, 'Image size must be less than 2.5MB.')
+                        context = {'page_title': 'Add Item to Catalog', 'form_data': request.POST}
+                        return render(request, 'sgierp/inventory/item_form.html', context)
+
                 # Check if code already exists
                 if Item.objects.filter(code=code).exists():
                     messages.error(request, f'Item code "{code}" already exists.')
@@ -198,6 +290,16 @@ def item_create(request):
                         is_active=is_active,
                         created_by=request.user if request.user.is_authenticated else None
                     )
+                    if 'image' in request.FILES:
+                        # Compress image before saving
+                        compressed_image = compress_image(request.FILES['image'])
+                        from django.core.files.uploadedfile import SimpleUploadedFile
+                        item.image = SimpleUploadedFile(
+                            request.FILES['image'].name,
+                            compressed_image.read(),
+                            content_type='image/jpeg'
+                        )
+                        item.save()
                     messages.success(request, f'Item "{code} - {name}" created successfully.')
                     return redirect('sgierp:item_catalog')
             except ValueError:
@@ -323,11 +425,28 @@ def item_edit(request, item_id):
             messages.error(request, 'Name is required.')
         else:
             try:
+                # Validate and compress image
+                if 'image' in request.FILES:
+                    image_file = request.FILES['image']
+                    if image_file.size > 2.5 * 1024 * 1024:  # 2.5MB
+                        messages.error(request, 'Image size must be less than 2.5MB.')
+                        context = {'item': item, 'page_title': f'Edit {item.code}', 'form_data': request.POST}
+                        return render(request, 'sgierp/inventory/item_form.html', context)
+
                 item.name = name
                 item.unit = unit
                 item.category = category
                 item.min_stock_level = float(min_stock_level) if min_stock_level else None
                 item.is_active = is_active
+                if 'image' in request.FILES:
+                    # Compress image before saving
+                    compressed_image = compress_image(request.FILES['image'])
+                    from django.core.files.uploadedfile import SimpleUploadedFile
+                    item.image = SimpleUploadedFile(
+                        request.FILES['image'].name,
+                        compressed_image.read(),
+                        content_type='image/jpeg'
+                    )
                 item.save()
                 messages.success(request, f'Item "{item.code}" updated successfully.')
                 return redirect('sgierp:item_catalog')
@@ -347,6 +466,7 @@ def item_detail(request, item_id):
     item = get_object_or_404(Item, id=item_id)
     user = get_sgi_user(request)
     completed = get_completed_process()
+    per_page = request.GET.get('per_page', _get_default_per_page())
 
     # Process-wise stock summary for this item
     process_stock = []
@@ -360,10 +480,26 @@ def item_detail(request, item_id):
             'assigned_at': entry.assigned_at,
         })
 
-    # Item-specific stock history
-    item_history = StockHistory.objects.filter(
+    # Item-specific stock history with pagination
+    item_history_qs = StockHistory.objects.filter(
         item=item
-    ).select_related('from_process', 'to_process', 'to_item', 'performed_by').order_by('-created_at')[:50]
+    ).select_related('from_process', 'to_process', 'to_item', 'performed_by').order_by('-created_at')
+
+    if per_page == 'all':
+        item_history = item_history_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = item_history.count()
+        total_count = item_history.count()
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(item_history_qs, per_page_int)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        item_history = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1
+        end_index = min(page_obj.number * per_page_int, paginator.count)
+        total_count = paginator.count
 
     context = {
         'item': item,
@@ -371,6 +507,11 @@ def item_detail(request, item_id):
         'item_history': item_history,
         'completed_process': completed,
         'page_title': f'{item.code} - {item.name}',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/inventory/item_detail.html', context)
 
@@ -708,11 +849,12 @@ def completed_stock(request):
 
 
 @sgi_login_required
+@sgi_login_required
 def stock_history(request):
     """Stock History page — all stock movements and assignments."""
     search = request.GET.get('q', '').strip()
     movement_type = request.GET.get('type', '')
-    page = request.GET.get('page', 1)
+    per_page = request.GET.get('per_page', _get_default_per_page())
 
     history_qs = StockHistory.objects.select_related(
         'item', 'from_process', 'to_process', 'performed_by'
@@ -727,14 +869,33 @@ def stock_history(request):
     if movement_type:
         history_qs = history_qs.filter(movement_type=movement_type)
 
-    paginator = Paginator(history_qs, 50)
-    history_page = paginator.get_page(page)
+    # Pagination
+    if per_page == 'all':
+        history = history_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = history.count()
+        total_count = history.count()
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(history_qs, per_page_int)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        history = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1
+        end_index = min(page_obj.number * per_page_int, paginator.count)
+        total_count = paginator.count
 
     context = {
-        'history': history_page,
+        'history': history,
+        'page_obj': page_obj,
         'search': search,
         'movement_type': movement_type,
         'page_title': 'Stock History',
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/inventory/history.html', context)
 

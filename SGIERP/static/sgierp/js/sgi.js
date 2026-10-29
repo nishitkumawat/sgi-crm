@@ -2,6 +2,43 @@
    SGIERP — Main JavaScript
    ============================================================ */
 
+// ---- Page Loader ----
+function showPageLoader() {
+  const loader = document.getElementById('pageLoader');
+  if (loader) loader.classList.add('active');
+}
+
+function hidePageLoader() {
+  const loader = document.getElementById('pageLoader');
+  if (loader) loader.classList.remove('active');
+}
+
+// Show loader on all link clicks (except for same-page anchors)
+document.addEventListener('DOMContentLoaded', function () {
+  // Hide loader on page load
+  hidePageLoader();
+
+  // Show loader when clicking links
+  document.querySelectorAll('a[href]').forEach(link => {
+    link.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      // Skip if it's a same-page anchor, mailto, tel, or has data-confirm
+      if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') ||
+          this.hasAttribute('data-confirm') || this.classList.contains('no-loader')) {
+        return;
+      }
+      showPageLoader();
+    });
+  });
+
+  // Show loader on form submissions
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      showPageLoader();
+    });
+  });
+});
+
 // ---- Sidebar Toggle ----
 document.addEventListener('DOMContentLoaded', function () {
 

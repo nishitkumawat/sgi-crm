@@ -9,7 +9,7 @@
 
 {% block content %}
 <div style="max-width:700px;">
-<form method="POST" action="{% if item %}{% url 'sgierp:item_edit' item.id %}{% else %}{% url 'sgierp:item_create' %}{% endif %}">
+<form method="POST" action="{% if item %}{% url 'sgierp:item_edit' item.id %}{% else %}{% url 'sgierp:item_create' %}{% endif %}" enctype="multipart/form-data">
 {% csrf_token %}
 <div class="sgi-card">
   <div class="sgi-card-header">
@@ -52,6 +52,17 @@
       <input type="text" class="sgi-input" id="category" name="category"
         value="{% if form_data.category %}{{ form_data.category }}{% elif item %}{{ item.category }}{% endif %}"
         placeholder="Category">
+    </div>
+
+    <div class="sgi-form-group">
+      <label class="sgi-label" for="item_image">Item Image</label>
+      {% if item and item.image %}
+      <div style="margin-bottom:8px;">
+        <img src="{{ item.image.url }}" style="height:70px;border-radius:6px;border:1px solid var(--sgi-border);">
+      </div>
+      {% endif %}
+      <input type="file" class="sgi-input" id="item_image" name="image" accept="image/*" style="padding:6px;">
+      <div style="font-size:11px;color:var(--sgi-text-muted);margin-top:4px;">Max size: 2.5MB</div>
     </div>
 
     <div class="sgi-form-group">

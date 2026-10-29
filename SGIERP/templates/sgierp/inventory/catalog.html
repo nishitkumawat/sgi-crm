@@ -3,6 +3,7 @@
 {% block page_title %}Item Catalog{% endblock %}
 
 {% block content %}
+<div class="sgi-content-scrollable">
 <div class="sgi-card">
   <div class="sgi-card-header">
     <div class="sgi-card-title">
@@ -54,11 +55,13 @@
   </div>
 
   <!-- Table -->
+  <div class="sgi-card-body">
   <div class="sgi-table-wrap">
     {% if items %}
     <table class="sgi-table" id="catalogTable">
       <thead>
         <tr>
+          <th style="width:48px;"></th>
           <th>Code</th>
           <th>Name</th>
           <th>Category</th>
@@ -71,6 +74,13 @@
       <tbody>
         {% for item in items %}
         <tr>
+          <td>
+            {% if item.image %}
+            <img src="{{ item.image.url }}" class="item-image-thumb" alt="{{ item.name }}">
+            {% else %}
+            <div class="item-image-placeholder"><i class="bi bi-box"></i></div>
+            {% endif %}
+          </td>
           <td><span class="fw-600">{{ item.code }}</span></td>
           <td>{{ item.name }}</td>
           <td>
@@ -132,5 +142,12 @@
     </div>
     {% endif %}
   </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if total_count > 0 %}
+  {% include 'sgierp/components/pagination.html' %}
+  {% endif %}
+</div>
 </div>
 {% endblock %}

@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
-from SGIERP.models import Process, ERPUserProfile, Assignee
+from SGIERP.models import Process, ERPUserProfile, Assignee, ERPConfig
 
 
 @sgi_login_required
@@ -35,11 +35,13 @@ def settings_view(request):
         }
     else:
         # Landing page
+        config = ERPConfig.get_solo()
         template = 'sgierp/settings/landing.html'
         context = {
             'processes': processes,
             'erp_users': erp_users,
             'assignees': assignees,
+            'erp_config': config,
         }
 
     return render(request, template, context)
@@ -291,3 +293,18 @@ def assignee_delete(request, assignee_id):
     assignee.delete()
     messages.success(request, f'Assignee "{assignee.name}" deleted successfully.')
     return redirect('sgierp:settings_assignees')
+
+
+@sgi_login_required
+def save_erp_config(request):
+    """Save ERP app-wide configuration (default rows per page, etc.)."""
+    if request.method == 'POST':
+        default_per_page = request.POST.get('default_per_page', '20')
+        valid_values = [c[0] for c in ERPConfig.PER_PAGE_CHOICES]
+        if default_per_page not in valid_values:
+            default_per_page = '20'
+        config = ERPConfig.get_solo()
+        config.default_per_page = default_per_page
+        config.save()
+        messages.success(request, f'Settings saved. Default rows per page set to {default_per_page}.')
+    return redirect('sgierp:settings')

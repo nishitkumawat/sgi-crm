@@ -3,6 +3,29 @@
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
+<div class="sgi-card" style="max-width:1200px;margin:0 auto 24px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-sliders"></i></div>
+      Display Settings
+    </div>
+  </div>
+  <div style="padding:18px;">
+    <form method="POST" action="{% url 'sgierp:save_erp_config' %}" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      {% csrf_token %}
+      <label for="defaultPerPage" class="sgi-label" style="margin:0;">Row to load by default</label>
+      <select id="defaultPerPage" class="sgi-select" name="default_per_page" style="min-width:120px;">
+        <option value="20" {% if erp_config.default_per_page == '20' %}selected{% endif %}>20 rows</option>
+        <option value="50" {% if erp_config.default_per_page == '50' %}selected{% endif %}>50 rows</option>
+        <option value="100" {% if erp_config.default_per_page == '100' %}selected{% endif %}>100 rows</option>
+        <option value="500" {% if erp_config.default_per_page == '500' %}selected{% endif %}>500 rows</option>
+      </select>
+      <button type="submit" class="btn-sgi btn-sgi-primary btn-sgi-sm"><i class="bi bi-check-lg"></i> Save</button>
+    </form>
+    <div class="sgi-input-hint" style="margin-top:8px;">This applies to all list pages on initial load.</div>
+  </div>
+</div>
+
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;margin:0 auto;">
   <!-- Processes Card -->
   <a href="{% url 'sgierp:settings_processes' %}" style="text-decoration:none;">

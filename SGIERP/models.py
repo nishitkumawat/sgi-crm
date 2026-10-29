@@ -493,3 +493,41 @@ class ERPUserProfile(models.Model):
     def display_name(self):
         full = self.user.get_full_name()
         return full if full else self.user.username
+
+
+# ============================================================
+# ERP CONFIGURATION (Singleton — app-wide settings)
+# ============================================================
+class ERPConfig(models.Model):
+    """
+    Singleton model for app-wide configuration.
+    Only one row should ever exist (id=1). Use ERPConfig.get_solo() to retrieve.
+    """
+    PER_PAGE_CHOICES = [
+        ('20', '20 rows'),
+        ('50', '50 rows'),
+        ('100', '100 rows'),
+        ('500', '500 rows'),
+    ]
+
+    default_per_page = models.CharField(
+        max_length=10,
+        choices=PER_PAGE_CHOICES,
+        default='20',
+        help_text='Default number of rows to load on list pages'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'sgi_erp_config'
+        verbose_name = 'ERP Configuration'
+        verbose_name_plural = 'ERP Configuration'
+
+    def __str__(self):
+        return f'ERP Config (default_per_page={self.default_per_page})'
+
+    @classmethod
+    def get_solo(cls):
+        """Return the singleton config row, creating it with defaults if missing."""
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj

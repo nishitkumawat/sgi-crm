@@ -7,6 +7,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="sgi-content-scrollable">
 <div class="sgi-card">
   <div class="sgi-card-header">
     <div class="sgi-card-title">
@@ -45,6 +46,7 @@
     </form>
   </div>
 
+  <div class="sgi-card-body">
   <div class="sgi-table-wrap">
     {% if machines %}
     <table class="sgi-table" id="machineTable">
@@ -116,5 +118,12 @@
     </div>
     {% endif %}
   </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if total_count > 0 %}
+  {% include 'sgierp/components/pagination.html' %}
+  {% endif %}
+</div>
 </div>
 {% endblock %}

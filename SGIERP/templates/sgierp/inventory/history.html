@@ -132,30 +132,12 @@
       </div>
       {% endif %}
     </div>
-  </div>
 
-  <!-- Pagination -->
-  {% if history.has_other_pages %}
-  <div style="display:flex;justify-content:center;gap:8px;padding:16px;">
-    {% if history.has_previous %}
-    <a href="?page=1{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">« First</a>
-    <a href="?page={{ history.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">‹ Prev</a>
-    {% endif %}
-
-    <span style="display:flex;align-items:center;gap:8px;font-size:13px;">
-      Page {{ history.number }} of {{ history.paginator.num_pages }}
-    </span>
-
-    {% if history.has_next %}
-    <a href="?page={{ history.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">Next ›</a>
-    <a href="?page={{ history.paginator.num_pages }}{% if search %}&q={{ search }}{% endif %}{% if movement_type %}&type={{ movement_type }}{% endif %}"
-       class="btn-sgi btn-sgi-outline btn-sgi-sm">Last »</a>
+    <!-- Pagination -->
+    {% if total_count > 0 %}
+    {% include 'sgierp/components/pagination.html' %}
     {% endif %}
   </div>
-  {% endif %}
 </div>
 </div>
 {% endblock %}

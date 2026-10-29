@@ -1,0 +1,71 @@
+{% load sgi_tags %}
+
+<!-- Pagination Controls -->
+<div class="pagination-container">
+  <div class="pagination-info">
+    Showing {{ start_index }}-{{ end_index }} of {{ total_count }}
+  </div>
+  <div class="pagination-controls">
+    <!-- Page navigation with ranges -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination-nav">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if per_page|stringformat:'s' != default_per_page|stringformat:'s' %}&per_page={{ per_page }}{% endif %}{% for key, value in request.GET.items %}{% if key != 'page' and key != 'per_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn pagination-btn-large" title="Previous Page">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+      {% else %}
+      <span class="pagination-btn pagination-btn-large disabled"><i class="bi bi-chevron-left"></i></span>
+      {% endif %}
+
+      <!-- Page ranges -->
+      <div class="pagination-ranges">
+        {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+          <span class="pagination-range active">{{ num }}</span>
+          {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <a href="?page={{ num }}{% if per_page|stringformat:'s' != default_per_page|stringformat:'s' %}&per_page={{ per_page }}{% endif %}{% for key, value in request.GET.items %}{% if key != 'page' and key != 'per_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-range">{{ num }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if per_page|stringformat:'s' != default_per_page|stringformat:'s' %}&per_page={{ per_page }}{% endif %}{% for key, value in request.GET.items %}{% if key != 'page' and key != 'per_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="pagination-btn pagination-btn-large" title="Next Page">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+      {% else %}
+      <span class="pagination-btn pagination-btn-large disabled"><i class="bi bi-chevron-right"></i></span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Rows per page dropdown -->
+    <div class="pagination-dropdown">
+      <select class="sgi-select pagination-select" id="rowsPerPage" onchange="changeRowsPerPage()">
+        <option value="20" {% if per_page == '20' or per_page == 20 %}selected{% endif %}>20</option>
+        <option value="50" {% if per_page == '50' or per_page == 50 %}selected{% endif %}>50</option>
+        <option value="100" {% if per_page == '100' or per_page == 100 %}selected{% endif %}>100</option>
+        <option value="500" {% if per_page == '500' or per_page == 500 %}selected{% endif %}>500</option>
+        <option value="all" {% if per_page == 'all' %}selected{% endif %}>All</option>
+      </select>
+      <span class="pagination-label">rows</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function changeRowsPerPage() {
+  var select = document.getElementById('rowsPerPage');
+  var value = select.value;
+  var url = new URL(window.location.href);
+  url.searchParams.set('per_page', value);
+  url.searchParams.set('page', '1');
+
+  // Show page loading overlay
+  var loader = document.getElementById('pageLoader');
+  if (loader) {
+    loader.classList.add('active');
+  }
+
+  window.location.href = url.toString();
+}
+</script>

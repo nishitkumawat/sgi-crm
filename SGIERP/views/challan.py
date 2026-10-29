@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from SGIERP.decorators import sgi_login_required, get_sgi_user
-from SGIERP.models import Challan, ChallanItem, Item, Process, Assignee
+from SGIERP.models import Challan, ChallanItem, Item, Process, Assignee, ERPConfig
 
 
 @sgi_login_required
@@ -18,32 +18,56 @@ def challan_list(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
     challan_type = request.GET.get('type', '')
+    try:
+        default_per_page = ERPConfig.get_solo().default_per_page
+    except Exception:
+        default_per_page = '20'
+    per_page_value = request.GET.get('per_page', default_per_page)
 
-    challans = Challan.objects.select_related('created_by').prefetch_related('items__item')
+    challans_qs = Challan.objects.select_related('created_by').prefetch_related('items__item')
 
     if search:
-        challans = challans.filter(
+        challans_qs = challans_qs.filter(
             party_name__icontains=search
         )
     if date_from:
-        challans = challans.filter(date__gte=date_from)
+        challans_qs = challans_qs.filter(date__gte=date_from)
     if date_to:
-        challans = challans.filter(date__lte=date_to)
+        challans_qs = challans_qs.filter(date__lte=date_to)
     if challan_type:
-        challans = challans.filter(challan_type=challan_type)
+        challans_qs = challans_qs.filter(challan_type=challan_type)
 
-    challans = challans.order_by('-date', '-challan_number')
+    challans_qs = challans_qs.order_by('-date', '-challan_number')
 
-    paginator = Paginator(challans, 20)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
+    # Pagination
+    if per_page_value == 'all':
+        challans = challans_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = challans.count()
+        total_count = challans.count()
+    else:
+        per_page = int(per_page_value)
+        paginator = Paginator(challans_qs, per_page)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        challans = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page + 1
+        end_index = min(page_obj.number * per_page, paginator.count)
+        total_count = paginator.count
 
     context = {
+        'challans': challans,
         'page_obj': page_obj,
         'search': search,
         'date_from': date_from,
         'date_to': date_to,
         'challan_type': challan_type,
         'page_title': 'Challans',
+        'per_page': per_page_value,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/challan/list.html', context)
 

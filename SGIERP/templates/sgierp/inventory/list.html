@@ -76,6 +76,7 @@
         <thead>
           <tr>
             <th style="width:48px;"></th>
+            <th style="width:48px;"></th>
             <th>Item Code</th>
             <th>Item Name</th>
             <th>Process</th>
@@ -89,6 +90,13 @@
           {% for entry in entries %}
           <tr>
             <td><span style="font-size:11px;color:var(--sgi-text-muted);font-family:monospace;">#{{ entry.id }}</span></td>
+            <td>
+              {% if entry.item.image %}
+              <img src="{{ entry.item.image.url }}" class="item-image-thumb" alt="{{ entry.item.name }}">
+              {% else %}
+              <div class="item-image-placeholder"><i class="bi bi-box"></i></div>
+              {% endif %}
+            </td>
             <td><span class="fw-600">{{ entry.item.code }}</span></td>
             <td>{{ entry.item.name }}</td>
             <td>
@@ -108,8 +116,9 @@
             </td>
             <td>
               {% if entry.assigned_at %}
-              <div style="font-size:12px;">{{ entry.assigned_at|date:"d M Y" }}</div>
-              <div style="font-size:11px;color:var(--sgi-text-muted);">{{ entry.assigned_at|time:"h:i A" }}</div>
+              <div style="font-size:12px;">{{ entry.assigned_at|time:"h:i A" }} {{ entry.assigned_at|date:"d M Y" }}</div>
+              <div style="font-size:11px;color:var(--sgi-text-muted);"></div>
+              <div style="font-size:10px;color:var(--sgi-text-muted);">{{ entry.assigned_at|timesince }} ago</div>
               {% else %}
               <span class="text-muted">—</span>
               {% endif %}
@@ -147,6 +156,12 @@
       </div>
       {% endif %}
     </div>
+  </div>
+
+    <!-- Pagination -->
+    {% if total_count > 0 %}
+    {% include 'sgierp/components/pagination.html' %}
+    {% endif %}
   </div>
 </div>
 </div>

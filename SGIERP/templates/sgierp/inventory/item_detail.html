@@ -199,6 +199,11 @@
       <p>Stock movements for this item will appear here.</p>
     </div>
     {% endif %}
+
+    <!-- Pagination -->
+    {% if total_count > 0 %}
+    {% include 'sgierp/components/pagination.html' %}
+    {% endif %}
   </div>
 </div>
 {% endblock %}

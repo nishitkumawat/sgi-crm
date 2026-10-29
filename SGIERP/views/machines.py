@@ -4,10 +4,45 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum
+from PIL import Image
+import io
 
 from SGIERP.decorators import sgi_login_required, get_sgi_user
-from SGIERP.models import Machine, MachineBOM, Item, MachineDispatch, ItemProcess
+from SGIERP.models import Machine, MachineBOM, Item, MachineDispatch, ItemProcess, ERPConfig
 from SGIERP.services import get_completed_process
+
+
+def _get_default_per_page():
+    try:
+        return ERPConfig.get_solo().default_per_page
+    except Exception:
+        return '20'
+
+
+def compress_image(image_file, max_size_kb=500, quality=85):
+    """Compress image to reduce file size while maintaining quality."""
+    img = Image.open(image_file)
+
+    # Convert to RGB if necessary (for PNG with transparency)
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGB')
+
+    # Create a BytesIO object to save the compressed image
+    output = io.BytesIO()
+
+    # Save with compression
+    img.save(output, format='JPEG', quality=quality, optimize=True)
+
+    # Check if file size is still too large and reduce quality if needed
+    output.seek(0)
+    while output.tell() > max_size_kb * 1024 and quality > 10:
+        quality -= 5
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=quality, optimize=True)
+        output.seek(0)
+
+    output.seek(0)
+    return output
 
 
 @sgi_login_required
@@ -15,14 +50,33 @@ def machine_list(request):
     """List all machines."""
     user = get_sgi_user(request)
     search = request.GET.get('q', '').strip()
+    per_page = request.GET.get('per_page', _get_default_per_page())
 
-    machines = Machine.objects.prefetch_related('bom_items__item')
+    machines_qs = Machine.objects.prefetch_related('bom_items__item')
     if search:
-        machines = machines.filter(
+        machines_qs = machines_qs.filter(
             __import__('django.db.models', fromlist=['Q']).Q(code__icontains=search) |
             __import__('django.db.models', fromlist=['Q']).Q(name__icontains=search)
         )
-    machines = machines.order_by('code')
+    machines_qs = machines_qs.order_by('code')
+
+    # Pagination
+    from django.core.paginator import Paginator
+    if per_page == 'all':
+        machines = machines_qs.all()
+        page_obj = None
+        start_index = 1
+        end_index = machines.count()
+        total_count = machines.count()
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(machines_qs, per_page_int)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        machines = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1
+        end_index = min(page_obj.number * per_page_int, paginator.count)
+        total_count = paginator.count
 
     dispatch_counts = {}
     for m in machines:
@@ -33,6 +87,11 @@ def machine_list(request):
         'dispatch_counts': dispatch_counts,
         'search': search,
         'page_title': 'Machines',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/machines/list.html', context)
 
@@ -135,7 +194,26 @@ def _save_machine(request, machine=None):
         machine.description = description
         machine.is_active = is_active
         if 'image' in request.FILES:
-            machine.image = request.FILES['image']
+            image_file = request.FILES['image']
+            if image_file.size > 2.5 * 1024 * 1024:  # 2.5MB
+                errors.append('Image size must be less than 2.5MB.')
+                items = Item.objects.filter(is_active=True).order_by('code')
+                for e in errors:
+                    messages.error(request, e)
+                return render(request, 'sgierp/machines/form.html', {
+                    'machine': machine, 'items': items,
+                    'form_data': request.POST,
+                    'page_title': f'Edit {machine.code}' if machine else 'Create Machine',
+                    'bom_json': bom_data_raw,
+                })
+            # Compress image before saving
+            compressed_image = compress_image(image_file)
+            from django.core.files.uploadedfile import SimpleUploadedFile
+            machine.image = SimpleUploadedFile(
+                image_file.name,
+                compressed_image.read(),
+                content_type='image/jpeg'
+            )
         machine.save()
 
         # Replace BOM

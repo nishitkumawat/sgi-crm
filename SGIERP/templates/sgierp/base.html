@@ -121,6 +121,10 @@
       </div>
 
       <div class="topbar-right">
+        <!-- Mobile page title -->
+        <div class="topbar-mobile-title">
+          {{ page_title|default:"SGIERP" }}
+        </div>
         <div class="topbar-actions">
           <a href="{% url 'sgierp:inventory' %}?status=active" class="topbar-btn" title="Inventory">
             <i class="bi bi-boxes"></i>
@@ -181,6 +185,12 @@
 
 <!-- Sidebar overlay (mobile) -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Page loading overlay -->
+<div class="page-loader" id="pageLoader">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Loading...</div>
+</div>
 
 {% else %}
 <!-- Unauthenticated layout -->
