@@ -9,7 +9,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('sgi_erp/', include('SGIERP.urls')),
-    path('', include('SGIERP.urls')),
+    path('', include('SGIERP.urls', namespace='sgierp_root')),
 ]
 
 # Serve media files in development

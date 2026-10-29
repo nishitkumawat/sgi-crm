@@ -9,7 +9,7 @@ from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_us
 from SGIERP.models import Process, ERPUserProfile, Assignee, ERPConfig
 
 
-@sgi_login_required
+@sgi_admin_required
 def settings_view(request):
     """Main settings page — tabs for processes, users, etc."""
     user = get_sgi_user(request)
@@ -47,7 +47,7 @@ def settings_view(request):
     return render(request, template, context)
 
 
-@sgi_login_required
+@sgi_admin_required
 def process_create_edit(request, process_id=None):
     """Create or edit a manufacturing process."""
     process = None
@@ -114,7 +114,7 @@ def process_create_edit(request, process_id=None):
     return render(request, 'sgierp/settings/process_form.html', context)
 
 
-@sgi_login_required
+@sgi_admin_required
 def process_delete(request, process_id):
     """Delete a process with validation, cascading history."""
     process = get_object_or_404(Process, id=process_id)
@@ -141,7 +141,7 @@ def process_delete(request, process_id):
     return redirect('sgierp:settings_processes')
 
 
-@sgi_login_required
+@sgi_admin_required
 def user_list(request):
     """ERP user management."""
     erp_users = User.objects.filter(
@@ -154,7 +154,7 @@ def user_list(request):
     return render(request, 'sgierp/settings/user_list.html', context)
 
 
-@sgi_login_required
+@sgi_admin_required
 def user_create_edit(request, user_id=None):
     """Create or edit an ERP user."""
     target_user = None
@@ -235,7 +235,7 @@ def user_create_edit(request, user_id=None):
     })
 
 
-@sgi_login_required
+@sgi_admin_required
 def assignee_create_edit(request, assignee_id=None):
     """Create or edit an Assignee (worker / staff)."""
     assignee = None
@@ -279,7 +279,7 @@ def assignee_create_edit(request, assignee_id=None):
     })
 
 
-@sgi_login_required
+@sgi_admin_required
 def assignee_delete(request, assignee_id):
     """Deletean assignee with validation."""
     assignee = get_object_or_404(Assignee, id=assignee_id)
@@ -295,7 +295,7 @@ def assignee_delete(request, assignee_id):
     return redirect('sgierp:settings_assignees')
 
 
-@sgi_login_required
+@sgi_admin_required
 def save_erp_config(request):
     """Save ERP app-wide configuration (default rows per page, etc.)."""
     if request.method == 'POST':

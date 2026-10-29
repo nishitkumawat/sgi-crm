@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum
+from django.views.decorators.http import require_POST
 from PIL import Image
 import io
 
@@ -132,6 +133,28 @@ def machine_edit(request, machine_id):
         'page_title': f'Edit {machine.code}',
         'bom_json': json.dumps(existing_bom),
     })
+
+
+@sgi_login_required
+@require_POST
+def machine_delete(request, machine_id):
+    """Delete a machine that has no dispatch history."""
+    machine = get_object_or_404(Machine, id=machine_id)
+    if machine.dispatches.exists():
+        messages.error(
+            request,
+            f'Machine {machine.code} cannot be deleted because it has dispatch history. '
+            'Deactivate it from the edit page to keep its records.',
+        )
+        return redirect('sgierp:machine_detail', machine_id=machine.id)
+
+    code = machine.code
+    image = machine.image
+    machine.delete()
+    if image:
+        image.delete(save=False)
+    messages.success(request, f'Machine {code} deleted successfully.')
+    return redirect('sgierp:machine_list')
 
 
 def _save_machine(request, machine=None):

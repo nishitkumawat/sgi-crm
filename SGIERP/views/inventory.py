@@ -405,7 +405,7 @@ def item_groups(request):
         'search': search,
         'page_title': 'Item Groups',
     }
-    return render(request, 'sgierp/inventory/item_groups.html', context)
+    return render(request, 'sgierp/inventory/groups.html', context)
 
 
 @sgi_login_required
@@ -705,34 +705,6 @@ def stock_move_view(request):
 
 
 @sgi_login_required
-def completed_stock(request):
-    """Completed Stock page — all items with stock in the Completed process."""
-    completed = get_completed_process()
-    search = request.GET.get('q', '').strip()
-
-    entries_qs = ItemProcess.objects.filter(
-        process=completed, quantity__gt=0
-    ).select_related('item')
-
-    if search:
-        entries_qs = entries_qs.filter(
-            Q(item__code__icontains=search) | Q(item__name__icontains=search)
-        )
-
-    # Aggregate by item
-    from collections import defaultdict
-    items_map = defaultdict(lambda: {'item': None, 'entries': [], 'total': 0})
-    for entry in entries_qs:
-        key = entry.item_id
-        items_map[key]['item'] = entry.item
-        items_map[key]['entries'].append(entry)
-        items_map[key]['total'] += entry.quantity
-
-    completed_items = sorted(items_map.values(), key=lambda x: x['item'].code)
-    total_qty = sum(v['total'] for v in completed_items)
-
-
-@sgi_login_required
 def process_wise_stock(request):
     """Process-wise stock view — shows stock by process in tabs."""
     processes = Process.objects.filter(is_active=True).order_by('order')
@@ -813,7 +785,7 @@ def assignee_wise_stock(request):
 
 @sgi_login_required
 def completed_stock(request):
-    """Completed Stock page — all items with stock in the Completed process."""
+    """Show paginated stock totals in the Completed process."""
     completed = get_completed_process()
     search = request.GET.get('q', '').strip()
 
@@ -835,16 +807,38 @@ def completed_stock(request):
         items_map[key]['entries'].append(entry)
         items_map[key]['total'] += entry.quantity
 
-    completed_items = sorted(items_map.values(), key=lambda x: x['item'].code)
-    total_qty = sum(v['total'] for v in completed_items)
+    all_completed_items = sorted(items_map.values(), key=lambda x: x['item'].code)
+    total_items = len(all_completed_items)
+    total_qty = sum(entry['total'] for entry in all_completed_items)
+
+    per_page = request.GET.get('per_page', _get_default_per_page())
+    if per_page == 'all':
+        completed_items = all_completed_items
+        page_obj = None
+        start_index = 1 if total_items else 0
+        end_index = total_items
+        total_count = total_items
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(all_completed_items, per_page_int)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        completed_items = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1 if total_items else 0
+        end_index = min(page_obj.number * per_page_int, total_items)
+        total_count = total_items
 
     return render(request, 'sgierp/inventory/completed.html', {
         'completed_process': completed,
         'completed_items': completed_items,
-        'total_items': len(completed_items),
+        'total_items': total_items,
         'total_qty': total_qty,
         'search': search,
         'page_title': 'Completed Stock',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     })
 
 

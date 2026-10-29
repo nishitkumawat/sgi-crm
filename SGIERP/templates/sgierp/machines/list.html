@@ -97,6 +97,12 @@
               <a href="{% url 'sgierp:dispatch_create' %}?machine={{ machine.id }}" class="btn-sgi btn-sgi-primary btn-sgi-icon btn-sgi-sm" title="Dispatch">
                 <i class="bi bi-truck"></i>
               </a>
+              <form method="POST" action="{% url 'sgierp:machine_delete' machine.id %}" onsubmit="return confirm('Delete machine {{ machine.code }}? Its BOM will also be removed. Machines with dispatch history cannot be deleted.');">
+                {% csrf_token %}
+                <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Delete machine" aria-label="Delete {{ machine.code }}" style="color:var(--sgi-danger);">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>
