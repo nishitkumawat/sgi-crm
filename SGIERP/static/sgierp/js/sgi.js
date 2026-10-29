@@ -21,10 +21,22 @@ document.addEventListener('DOMContentLoaded', function () {
   const imagePreview = document.getElementById('imagePreview');
   const previewImage = document.getElementById('imagePreviewContent');
   let imageZoom = 1;
-  const setImageZoom = (zoom) => {
-    imageZoom = Math.max(0.5, Math.min(3, zoom));
-    imagePreview?.style.setProperty('--image-preview-zoom', imageZoom);
+  let imageBaseWidth = 0;
+  const fitPreviewImage = () => {
+    if (!previewImage?.naturalWidth || !previewImage?.naturalHeight) return;
+    const fitScale = Math.min((window.innerWidth * 0.92) / previewImage.naturalWidth,
+      (window.innerHeight * 0.78) / previewImage.naturalHeight, 1);
+    imageBaseWidth = previewImage.naturalWidth * fitScale;
+    applyImageZoom();
   };
+  const applyImageZoom = () => {
+    if (previewImage && imageBaseWidth) previewImage.style.width = `${imageBaseWidth * imageZoom}px`;
+  };
+  const setImageZoom = (zoom) => {
+    imageZoom = Math.max(0.5, Math.min(4, zoom));
+    applyImageZoom();
+  };
+  previewImage?.addEventListener('load', fitPreviewImage);
   document.getElementById('imageZoomIn')?.addEventListener('click', () => setImageZoom(imageZoom + 0.25));
   document.getElementById('imageZoomOut')?.addEventListener('click', () => setImageZoom(imageZoom - 0.25));
   document.getElementById('imageZoomReset')?.addEventListener('click', () => setImageZoom(1));
@@ -39,8 +51,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const thumbnail = event.target.closest('.item-image-thumb');
     if (thumbnail && imagePreview && previewImage) {
       event.preventDefault();
+      imageBaseWidth = 0;
       previewImage.src = thumbnail.currentSrc || thumbnail.src;
       previewImage.alt = thumbnail.alt || 'Enlarged image';
+      if (previewImage.complete) fitPreviewImage();
       setImageZoom(1);
       imagePreview.classList.add('active');
       imagePreview.setAttribute('aria-hidden', 'false');

@@ -767,18 +767,21 @@ body {
   color: var(--sgi-text-muted); font-size: 18px;
 }
 .image-preview {
-  position: fixed; inset: 0; z-index: 12000; display: none;
-  align-items: center; justify-content: center; padding: 48px 24px;
+  position: fixed; inset: 0; z-index: 12000; display: none; overflow: auto;
+  align-items: center; justify-content: center; padding: 70px 24px 88px;
   background: rgba(10, 15, 24, .88);
 }
 .image-preview.active { display: flex; }
 .image-preview-content {
-  display: block; max-width: min(92vw, 1200px); max-height: 88vh;
+  display: block; max-width: none; max-height: none; width: auto; height: auto;
   object-fit: contain; border-radius: 8px; box-shadow: 0 16px 56px rgba(0,0,0,.4);
-  transform: scale(var(--image-preview-zoom, 1)); transition: transform .15s ease;
+  transition: width .15s ease;
 }
 .image-preview-controls {
-  position: absolute; top: 18px; left: 22px; display: flex; gap: 8px; z-index: 1;
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 1; padding: 7px;
+  border: 1px solid rgba(255,255,255,.2); border-radius: 28px;
+  background: rgba(20,25,35,.85); backdrop-filter: blur(8px);
 }
 .image-preview-controls button {
   width: 42px; height: 42px; border: 0; border-radius: 50%;
