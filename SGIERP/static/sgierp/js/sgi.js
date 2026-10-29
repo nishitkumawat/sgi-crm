@@ -18,6 +18,31 @@ document.addEventListener('DOMContentLoaded', function () {
   // Hide loader on page load
   hidePageLoader();
 
+  const imagePreview = document.getElementById('imagePreview');
+  const previewImage = document.getElementById('imagePreviewContent');
+  const closeImagePreview = () => {
+    imagePreview?.classList.remove('active');
+    imagePreview?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('image-preview-open');
+    if (previewImage) previewImage.src = '';
+  };
+  document.addEventListener('click', function (event) {
+    const thumbnail = event.target.closest('.item-image-thumb');
+    if (thumbnail && imagePreview && previewImage) {
+      event.preventDefault();
+      previewImage.src = thumbnail.currentSrc || thumbnail.src;
+      previewImage.alt = thumbnail.alt || 'Enlarged image';
+      imagePreview.classList.add('active');
+      imagePreview.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('image-preview-open');
+      return;
+    }
+    if (event.target === imagePreview || event.target.closest('#imagePreviewClose')) closeImagePreview();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeImagePreview();
+  });
+
   // Show loader when clicking links
   document.querySelectorAll('a[href]').forEach(link => {
     link.addEventListener('click', function(e) {

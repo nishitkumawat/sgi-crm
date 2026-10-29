@@ -196,6 +196,12 @@
   <div class="loader-text">Loading...</div>
 </div>
 
+<!-- Image preview -->
+<div class="image-preview" id="imagePreview" aria-hidden="true">
+  <button type="button" class="image-preview-close" id="imagePreviewClose" aria-label="Close image preview"><i class="bi bi-x-lg"></i></button>
+  <img class="image-preview-content" id="imagePreviewContent" alt="">
+</div>
+
 {% else %}
 <!-- Unauthenticated layout -->
 {% block auth_content %}{% endblock %}
