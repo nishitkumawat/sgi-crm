@@ -240,34 +240,180 @@ function initBomEditor() {
   const bomContainer = document.getElementById('bomTableBody');
   const addBomBtn = document.getElementById('addBomRow');
   const bomDataInput = document.getElementById('bomData');
-  const allItemsData = document.getElementById('allItemsData');
+  const bomItemsData = document.getElementById('bomItemsData');
+  const bomPagination = document.getElementById('bomPagination');
+  const openBulkImportBtn = document.getElementById('openBulkImportBom');
+  const bulkImportBtn = document.getElementById('bulkImportBom');
+  const bulkImportDialog = document.getElementById('bulkImportDialog');
+  const closeBulkImportBtn = document.getElementById('closeBulkImportDialog');
+  const bulkPrefixInput = document.getElementById('bulkItemPrefix');
+  const bulkQuantityInput = document.getElementById('bulkItemQuantity');
+  const bulkStatus = document.getElementById('bulkImportStatus');
+  const loadingOverlay = document.getElementById('machineLoadingOverlay');
+  const loadingMessage = document.getElementById('machineLoadingMessage');
+  const machineForm = document.getElementById('machineForm');
 
   if (!bomContainer || !addBomBtn || !bomDataInput) return;
 
+  function setMachineBusy(message, isBusy) {
+    if (!loadingOverlay) return;
+    loadingMessage.textContent = message;
+    loadingOverlay.style.display = isBusy ? 'flex' : 'none';
+    loadingOverlay.setAttribute('aria-hidden', isBusy ? 'false' : 'true');
+  }
+
   let items = [];
-  try { items = JSON.parse(allItemsData?.textContent || '[]'); } catch(e) {}
+  try { items = JSON.parse(bomItemsData?.textContent || '[]'); } catch(e) {}
+  const itemsById = new Map(items.map(item => [String(item.id), {
+    ...item, id: String(item.id), label: `${item.code} — ${item.name}`,
+  }]));
 
   let bomRows = [];
   try { bomRows = JSON.parse(bomDataInput.value || '[]'); } catch(e) {}
 
-  function renderRows() {
+  function captureVisibleBomEdits() {
+    bomContainer.querySelectorAll('.bom-item-select').forEach(input => {
+      const row = bomRows[Number(input.dataset.idx)];
+      if (!row) return;
+      const currentSelection = itemsById.get(String(row.item_id));
+      const selected = currentSelection?.label === input.value
+        ? currentSelection
+        : [...itemsById.values()].find(item => item.label === input.value);
+      if (selected) {
+        row.item_id = selected.id;
+        row.item_label = selected.label;
+        row.item_code = selected.code;
+        row.item_name = selected.name;
+        row.item_image = selected.image || '';
+      } else {
+        row.item_id = '';
+        row.item_label = input.value;
+        row.item_code = '';
+        row.item_name = '';
+        row.item_image = '';
+      }
+    });
+    bomContainer.querySelectorAll('.bom-qty-input').forEach(input => {
+      const row = bomRows[Number(input.dataset.idx)];
+      if (row) row.quantity = parseFloat(input.value) || 0;
+    });
+    syncBomData();
+  }
+
+  machineForm?.addEventListener('submit', function() {
+    captureVisibleBomEdits();
+    setMachineBusy('Saving machine and BOM…', true);
+  });
+  const defaultPageSize = bomPagination?.dataset.defaultPerPage || '20';
+  let bomPageSize = defaultPageSize === 'all' ? Infinity : (parseInt(defaultPageSize, 10) || 20);
+  let bomCurrentPage = 1;
+
+  function updateBomPagination() {
+    if (!bomPagination) return;
+    const total = bomRows.length;
+    if (!total) {
+      bomPagination.innerHTML = '';
+      return;
+    }
+    const totalPages = bomPageSize === Infinity ? 1 : Math.ceil(total / bomPageSize);
+    bomCurrentPage = Math.min(Math.max(1, bomCurrentPage), totalPages);
+    const start = bomPageSize === Infinity ? 1 : ((bomCurrentPage - 1) * bomPageSize + 1);
+    const end = bomPageSize === Infinity ? total : Math.min(bomCurrentPage * bomPageSize, total);
+    bomPagination.innerHTML = '';
+
+    const container = document.createElement('div');
+    container.className = 'pagination-container';
+    const info = document.createElement('div');
+    info.className = 'pagination-info';
+    info.textContent = `Showing ${start}-${end} of ${total}`;
+    container.appendChild(info);
+
+    const controls = document.createElement('div');
+    controls.className = 'pagination-controls';
+    const nav = document.createElement('div');
+    nav.className = 'pagination-nav';
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = `pagination-btn pagination-btn-large${bomCurrentPage === 1 ? ' disabled' : ''}`;
+    previous.innerHTML = '<i class="bi bi-chevron-left"></i>';
+    previous.disabled = bomCurrentPage === 1;
+    previous.title = 'Previous Page';
+    previous.addEventListener('click', () => { captureVisibleBomEdits(); bomCurrentPage--; renderRows(); });
+    nav.appendChild(previous);
+
+    const ranges = document.createElement('div');
+    ranges.className = 'pagination-ranges';
+    for (let page = Math.max(1, bomCurrentPage - 2); page <= Math.min(totalPages, bomCurrentPage + 2); page++) {
+      const pageButton = document.createElement('button');
+      pageButton.type = 'button';
+      pageButton.className = `pagination-range${page === bomCurrentPage ? ' active' : ''}`;
+      pageButton.textContent = page;
+      pageButton.addEventListener('click', () => { captureVisibleBomEdits(); bomCurrentPage = page; renderRows(); });
+      ranges.appendChild(pageButton);
+    }
+    nav.appendChild(ranges);
+
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = `pagination-btn pagination-btn-large${bomCurrentPage === totalPages ? ' disabled' : ''}`;
+    next.innerHTML = '<i class="bi bi-chevron-right"></i>';
+    next.disabled = bomCurrentPage === totalPages;
+    next.title = 'Next Page';
+    next.addEventListener('click', () => { captureVisibleBomEdits(); bomCurrentPage++; renderRows(); });
+    nav.appendChild(next);
+    controls.appendChild(nav);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'pagination-dropdown';
+    const select = document.createElement('select');
+    select.className = 'sgi-select pagination-select';
+    select.setAttribute('aria-label', 'Rows per page');
+    [['20', '20'], ['50', '50'], ['100', '100'], ['500', '500'], ['all', 'All']].forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      option.selected = (value === 'all' && bomPageSize === Infinity) || Number(value) === bomPageSize;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', function() {
+      captureVisibleBomEdits();
+      bomPageSize = this.value === 'all' ? Infinity : Number(this.value);
+      bomCurrentPage = 1;
+      renderRows();
+    });
+    dropdown.append(select, Object.assign(document.createElement('span'), { className: 'pagination-label', textContent: 'rows' }));
+    controls.appendChild(dropdown);
+    container.appendChild(controls);
+    bomPagination.appendChild(container);
+  }
+
+  function renderRows(showLoading = true) {
+    const render = () => {
     bomContainer.innerHTML = '';
+    updateBomPagination();
     if (bomRows.length === 0) {
       bomContainer.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:20px;text-align:center;">No components added yet. Click "Add Component".</td></tr>';
       return;
     }
-    bomRows.forEach((row, idx) => {
+    const pageStart = bomPageSize === Infinity ? 0 : (bomCurrentPage - 1) * bomPageSize;
+    const pageEnd = bomPageSize === Infinity ? bomRows.length : Math.min(pageStart + bomPageSize, bomRows.length);
+    bomRows.slice(pageStart, pageEnd).forEach((row, pageIdx) => {
+      const idx = pageStart + pageIdx;
       const tr = document.createElement('tr');
-      const itemOptions = items.map(it =>
-        `<option value="${it.id}" ${it.id == row.item_id ? 'selected' : ''}>${it.code} - ${it.name}</option>`
-      ).join('');
+      const selected = row.item_label || (row.item_code ? `${row.item_code} — ${row.item_name || ''}` : '');
       tr.innerHTML = `
         <td style="padding:8px 12px;">${idx + 1}</td>
         <td style="padding:8px 12px;">
-          <select class="sgi-select bom-item-select" data-idx="${idx}" style="width:100%;">
-            <option value="">-- Select Item --</option>
-            ${itemOptions}
-          </select>
+          <div class="bom-autocomplete">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <img class="bom-selected-image" alt="" loading="lazy" decoding="async"
+                style="width:42px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--sgi-border);${row.item_image ? '' : 'display:none;'}">
+              <input type="text" class="sgi-input bom-item-select" data-idx="${idx}"
+                value="${selected.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"
+                placeholder="Search item code or name" autocomplete="off" style="width:100%;">
+            </div>
+            <div class="bom-suggestions" role="listbox"></div>
+          </div>
         </td>
         <td style="padding:8px 12px;">
           <input type="number" class="sgi-input bom-qty-input" data-idx="${idx}"
@@ -279,17 +425,92 @@ function initBomEditor() {
           </button>
         </td>
       `;
+      const selectedImage = tr.querySelector('.bom-selected-image');
+      if (row.item_image) selectedImage.src = row.item_image;
       bomContainer.appendChild(tr);
     });
 
     // Bind events
-    bomContainer.querySelectorAll('.bom-item-select').forEach(sel => {
-      sel.addEventListener('change', function() {
+    bomContainer.querySelectorAll('.bom-item-select').forEach(input => {
+      const suggestions = input.closest('.bom-autocomplete').querySelector('.bom-suggestions');
+      let searchRevision = 0;
+      const showSuggestions = (query = '') => {
+        const revision = ++searchRevision;
+        suggestions.innerHTML = '<div style="padding:10px 12px;color:var(--sgi-text-muted);"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Searching items…</div>';
+        suggestions.classList.add('show');
+        suggestions.setAttribute('aria-busy', 'true');
+        window.requestAnimationFrame(() => {
+        if (revision !== searchRevision) return;
+        const normalizedQuery = query.trim().toLowerCase();
+        const currentIndex = +input.dataset.idx;
+        const selectedElsewhere = new Set(
+          bomRows
+            .filter((row, index) => index !== currentIndex && row.item_id)
+            .map(row => String(row.item_id))
+        );
+        const matches = items.filter(item =>
+          !selectedElsewhere.has(String(item.id)) && (
+            item.code.toLowerCase().includes(normalizedQuery) ||
+            item.name.toLowerCase().includes(normalizedQuery)
+          )
+        ).slice(0, 50);
+        suggestions.replaceChildren();
+        matches.forEach(item => {
+          const option = document.createElement('div');
+          option.className = 'bom-suggestion';
+          option.setAttribute('role', 'option');
+          option.dataset.itemId = item.id;
+          const code = document.createElement('div');
+          code.className = 'bom-suggestion-code';
+          code.textContent = item.code;
+          const name = document.createElement('div');
+          name.className = 'bom-suggestion-name';
+          name.textContent = item.name;
+          option.append(code, name);
+          suggestions.appendChild(option);
+        });
+        suggestions.classList.toggle('show', matches.length > 0);
+        suggestions.setAttribute('aria-busy', 'false');
+        });
+      };
+      input.addEventListener('input', function() {
         const idx = +this.dataset.idx;
-        const selected = items.find(it => it.id == this.value);
-        bomRows[idx].item_id = this.value;
-        bomRows[idx].item_code = selected?.code || '';
-        bomRows[idx].item_name = selected?.name || '';
+        bomRows[idx].item_id = '';
+        bomRows[idx].item_label = this.value;
+        bomRows[idx].item_code = '';
+        bomRows[idx].item_name = '';
+        bomRows[idx].item_image = '';
+        const selectedImage = this.parentElement.querySelector('.bom-selected-image');
+        selectedImage.removeAttribute('src');
+        selectedImage.style.display = 'none';
+        syncBomData();
+        showSuggestions(this.value);
+      });
+      input.addEventListener('focus', function() {
+        showSuggestions(this.value);
+      });
+      suggestions.addEventListener('mousedown', function(event) {
+        const option = event.target.closest('.bom-suggestion');
+        if (!option) return;
+        event.preventDefault();
+        const idx = +input.dataset.idx;
+        const item = itemsById.get(option.dataset.itemId);
+        if (!item) return;
+        input.value = item.label;
+        bomRows[idx].item_id = item.id;
+        bomRows[idx].item_label = item.label;
+        bomRows[idx].item_code = item.code;
+        bomRows[idx].item_name = item.name;
+        bomRows[idx].item_image = item.image || '';
+        const selectedImage = input.parentElement.querySelector('.bom-selected-image');
+        if (item.image) {
+          selectedImage.src = item.image;
+          selectedImage.style.display = '';
+        } else {
+          selectedImage.removeAttribute('src');
+          selectedImage.style.display = 'none';
+        }
+        suggestions.classList.remove('show');
         syncBomData();
       });
     });
@@ -303,21 +524,89 @@ function initBomEditor() {
     bomContainer.querySelectorAll('.bom-row-remove').forEach(btn => {
       btn.addEventListener('click', function() {
         const idx = +this.dataset.idx;
+        captureVisibleBomEdits();
         bomRows.splice(idx, 1);
         renderRows();
         syncBomData();
       });
     });
+    };
+
+    if (showLoading) {
+      bomContainer.innerHTML = '<tr><td colspan="4" role="status" style="padding:20px;text-align:center;color:var(--sgi-text-muted);"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Loading BOM items…</td></tr>';
+      window.requestAnimationFrame(render);
+    } else {
+      render();
+    }
   }
+
+  document.addEventListener('click', function(event) {
+    if (!event.target.closest('.bom-autocomplete')) {
+      bomContainer.querySelectorAll('.bom-suggestions').forEach(list => list.classList.remove('show'));
+    }
+  });
 
   function syncBomData() {
     bomDataInput.value = JSON.stringify(bomRows);
   }
 
   addBomBtn.addEventListener('click', function() {
+    captureVisibleBomEdits();
     bomRows.push({ item_id: '', item_code: '', item_name: '', quantity: 1 });
+    bomCurrentPage = bomPageSize === Infinity ? 1 : Math.ceil(bomRows.length / bomPageSize);
     renderRows();
     syncBomData();
+  });
+
+  openBulkImportBtn?.addEventListener('click', function() {
+    if (bulkStatus) bulkStatus.textContent = '';
+    bulkImportDialog?.showModal();
+    bulkPrefixInput?.focus();
+  });
+  closeBulkImportBtn?.addEventListener('click', function() {
+    bulkImportDialog?.close();
+  });
+
+  bulkImportBtn?.addEventListener('click', function() {
+    const prefix = bulkPrefixInput?.value.trim() || '';
+    const quantity = Number(bulkQuantityInput?.value);
+    if (!prefix) {
+      bulkStatus.textContent = 'Enter an item code prefix first.';
+      bulkPrefixInput?.focus();
+      return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      bulkStatus.textContent = 'Enter a default quantity greater than zero.';
+      bulkQuantityInput?.focus();
+      return;
+    }
+
+    setMachineBusy('Adding matching BOM items…', true);
+    window.requestAnimationFrame(() => {
+      captureVisibleBomEdits();
+      const existingIds = new Set(bomRows.map(row => String(row.item_id)).filter(Boolean));
+      const matches = items.filter(item => item.code.startsWith(prefix)).map(item => itemsById.get(String(item.id)));
+      const newItems = matches.filter(item => !existingIds.has(String(item.id)));
+      newItems.forEach(item => bomRows.push({
+        item_id: item.id,
+        item_code: item.code,
+        item_name: item.name,
+        item_image: item.image || '',
+        item_label: item.label,
+        quantity,
+      }));
+      if (newItems.length) {
+        bomCurrentPage = bomPageSize === Infinity ? 1 : Math.ceil(bomRows.length / bomPageSize);
+      }
+
+      bulkStatus.textContent = matches.length === 0
+        ? `No active items found with code prefix “${prefix}”.`
+        : `${newItems.length} item${newItems.length === 1 ? '' : 's'} added${matches.length > newItems.length ? `; ${matches.length - newItems.length} already in the BOM skipped` : ''}.`;
+      renderRows(true);
+      syncBomData();
+      setMachineBusy('', false);
+      if (matches.length > 0) bulkImportDialog?.close();
+    });
   });
 
   renderRows();

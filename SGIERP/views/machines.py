@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum
+from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
 from PIL import Image
 import io
@@ -109,6 +110,7 @@ def machine_create(request):
     return render(request, 'sgierp/machines/form.html', {
         'machine': None, 'items': items, 'form_data': {},
         'page_title': 'Create Machine', 'bom_json': '[]',
+        'default_per_page': _get_default_per_page(),
     })
 
 
@@ -124,7 +126,9 @@ def machine_edit(request, machine_id):
 
     existing_bom = [
         {'item_id': b.item_id, 'item_code': b.item.code,
-         'item_name': b.item.name, 'quantity': float(b.quantity_required)}
+         'item_name': b.item.name,
+         'item_image': b.item.image.url if b.item.image else '',
+         'quantity': float(b.quantity_required)}
         for b in machine.bom_items.select_related('item').all()
     ]
 
@@ -132,6 +136,7 @@ def machine_edit(request, machine_id):
         'machine': machine, 'items': items,
         'page_title': f'Edit {machine.code}',
         'bom_json': json.dumps(existing_bom),
+        'default_per_page': _get_default_per_page(),
     })
 
 
@@ -205,6 +210,7 @@ def _save_machine(request, machine=None):
             'form_data': request.POST,
             'page_title': f'Edit {machine.code}' if machine else 'Create Machine',
             'bom_json': bom_data_raw,
+            'default_per_page': _get_default_per_page(),
         })
 
     with transaction.atomic():
@@ -228,6 +234,7 @@ def _save_machine(request, machine=None):
                     'form_data': request.POST,
                     'page_title': f'Edit {machine.code}' if machine else 'Create Machine',
                     'bom_json': bom_data_raw,
+                    'default_per_page': _get_default_per_page(),
                 })
             # Compress image before saving
             compressed_image = compress_image(image_file)
@@ -259,19 +266,38 @@ def machine_detail(request, machine_id):
     user = get_sgi_user(request)
     completed = get_completed_process()
 
-    bom_items = machine.bom_items.select_related('item').all()
+    # Keep component order consistent between paginated and All views.
+    bom_items_qs = machine.bom_items.select_related('item').order_by('item__code', 'item_id')
+    per_page = request.GET.get('per_page', _get_default_per_page())
+    if per_page == 'all':
+        bom_items = bom_items_qs
+        page_obj = None
+        total_count = bom_items_qs.count()
+        start_index = 1 if total_count else 0
+        end_index = total_count
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(bom_items_qs, per_page_int)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        bom_items = page_obj.object_list
+        total_count = paginator.count
+        start_index = (page_obj.number - 1) * per_page_int + 1 if total_count else 0
+        end_index = min(page_obj.number * per_page_int, total_count)
     dispatches = machine.dispatches.select_related('dispatched_by').order_by('-dispatch_date')[:20]
 
     # Enrich BOM with available completed stock
+    available_by_item = {}
+    if completed:
+        available_by_item = dict(
+            ItemProcess.objects.filter(
+                process=completed,
+                item_id__in=[entry.item_id for entry in bom_items],
+            ).values('item_id').order_by().annotate(total=Sum('quantity')).values_list('item_id', 'total')
+        )
+
     enriched_bom = []
     for entry in bom_items:
-        avail = 0
-        if completed:
-            from django.db.models import Sum
-            result = entry.item.process_entries.filter(
-                process=completed
-            ).aggregate(total=Sum('quantity'))
-            avail = result['total'] or 0
+        avail = available_by_item.get(entry.item_id) or 0
         enriched_bom.append({
             'item': entry.item,
             'quantity_required': entry.quantity_required,
@@ -283,5 +309,11 @@ def machine_detail(request, machine_id):
         'enriched_bom': enriched_bom,
         'dispatches': dispatches,
         'page_title': f'{machine.code} - {machine.name}',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'default_per_page': _get_default_per_page(),
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
     }
     return render(request, 'sgierp/machines/detail.html', context)
