@@ -1,11 +1,12 @@
 {% extends 'sgierp/base.html' %}
-{% block title %}Processes & Assignees{% endblock %}
-{% block page_title %}Inventory Setup{% endblock %}
+{% block title %}Extra{% endblock %}
+{% block page_title %}Extra{% endblock %}
 {% block content %}
 <div class="sgi-page-header">
-  <div><h1>Processes & Assignees</h1></div>
+  <div><h1>Extra</h1></div>
 </div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+  {% if sgi_profile.role == 'admin' %}
   <a href="{% url 'sgierp:settings_processes' %}" style="text-decoration:none;">
     <section class="sgi-card" style="height:100%;transition:transform 0.2s,box-shadow 0.2s;">
       <div class="sgi-card-body" style="text-align:center;padding:40px 24px;">
@@ -29,6 +30,19 @@
         <p style="margin:0;color:var(--sgi-text-muted);font-size:14px;">Workers, departments & external parties</p>
         <div style="margin-top:16px;"><span class="sgi-badge sgi-badge-green">{{ assignees|length }} assignees</span></div>
         <span class="btn-sgi btn-sgi-primary" style="margin-top:18px;"><i class="bi bi-people"></i> Open Assignees</span>
+      </div>
+    </section>
+  </a>
+  {% endif %}
+  <a href="{% url 'sgierp:rejected_stock' %}" style="text-decoration:none;">
+    <section class="sgi-card" style="height:100%;transition:transform 0.2s,box-shadow 0.2s;">
+      <div class="sgi-card-body" style="text-align:center;padding:40px 24px;">
+        <div style="width:80px;height:80px;background:var(--sgi-danger-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <i class="bi bi-x-circle" style="font-size:36px;color:var(--sgi-danger);"></i>
+        </div>
+        <h3 style="margin:0 0 8px;font-size:20px;color:var(--sgi-text);">Rejected Stock</h3>
+        <p style="margin:0;color:var(--sgi-text-muted);font-size:14px;">Review rejected quantities and move them back into a process.</p>
+        <span class="btn-sgi btn-sgi-primary" style="margin-top:18px;"><i class="bi bi-box-arrow-up-right"></i> Open Rejected Stock</span>
       </div>
     </section>
   </a>

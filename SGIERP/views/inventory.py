@@ -12,7 +12,7 @@ import io
 
 from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
 from SGIERP.models import Item, Process, ItemProcess, Assignee, StockHistory, ERPConfig
-from SGIERP.services import add_initial_stock, move_stock, get_completed_process
+from SGIERP.services import add_initial_stock, move_stock, get_completed_process, get_rejected_process
 
 
 def _get_default_per_page(request):
@@ -124,12 +124,15 @@ def inventory_list(request):
     per_page = request.GET.get('per_page', _get_default_per_page(request))
 
     # Get all items with stock - optimize
-    entries_qs = ItemProcess.objects.filter(quantity__gt=0).select_related(
+    entries_qs = ItemProcess.objects.filter(quantity__gt=0).exclude(
+        process__is_rejected_process=True
+    ).select_related(
         'item', 'process', 'assigned_to'
     ).only(
         'id', 'quantity', 'assigned_at',
         'item__id', 'item__code', 'item__name', 'item__is_active', 'item__unit',
         'process__id', 'process__name', 'process__order', 'process__is_completed_process',
+        'process__is_rejected_process',
         'assigned_to__id', 'assigned_to__name'
     )
 
@@ -146,10 +149,14 @@ def inventory_list(request):
 
     # Filter by process status (completed/non-completed)
     completed = get_completed_process()
-    if process_status == 'completed' and completed:
-        entries_qs = entries_qs.filter(process=completed)
-    elif process_status == 'non_completed' and completed:
-        entries_qs = entries_qs.exclude(process=completed)
+    if process_status == 'completed':
+        entries_qs = entries_qs.filter(process=completed) if completed else entries_qs.none()
+    elif process_status == 'rejected':
+        entries_qs = entries_qs.none()
+    elif process_status == 'non_completed':
+        entries_qs = entries_qs.exclude(
+            Q(process__is_completed_process=True) | Q(process__is_rejected_process=True)
+        )
 
     entries_qs = entries_qs.order_by('item__code', 'process__order', 'process__name')
 
@@ -172,7 +179,7 @@ def inventory_list(request):
         total_count = paginator.count
 
     # Get all processes for filter dropdown - optimize
-    processes = Process.objects.filter(is_active=True).order_by('order', 'name').only('id', 'name', 'order')
+    processes = Process.objects.filter(is_active=True, is_rejected_process=False).order_by('order', 'name').only('id', 'name', 'order')
 
     context = {
         'entries': entries,
@@ -471,12 +478,15 @@ def item_detail(request, item_id):
 
     # Process-wise stock summary for this item
     process_stock = []
-    for entry in item.process_entries.filter(quantity__gt=0).select_related('process', 'assigned_to'):
+    for entry in item.process_entries.filter(quantity__gt=0).exclude(
+        process__is_rejected_process=True
+    ).select_related('process', 'assigned_to'):
         process_stock.append({
             'process_id': entry.process.id,
             'process_name': entry.process.name,
             'total': entry.quantity,
             'is_completed_process': entry.process.is_completed_process,
+            'is_rejected_process': entry.process.is_rejected_process,
             'assigned_to': entry.assigned_to.name if entry.assigned_to else None,
             'assigned_at': entry.assigned_at,
         })
@@ -538,11 +548,9 @@ def stock_move_view(request):
     if item_id:
         try:
             selected_item = Item.objects.get(id=int(item_id))
-            # Get the first stock entry for this item (excluding completed process)
+            # Default to the first available stock entry; completed/rejected stock can be moved back too.
             stock_entry = selected_item.process_entries.filter(
                 quantity__gt=0
-            ).exclude(
-                process__is_completed_process=True
             ).select_related('process').first()
             if stock_entry:
                 selected_stock_entry = stock_entry
@@ -553,16 +561,19 @@ def stock_move_view(request):
     if process_id:
         try:
             selected_source_process = Process.objects.get(id=int(process_id))
+            if selected_item:
+                selected_stock_entry = selected_item.process_entries.filter(
+                    process=selected_source_process,
+                    quantity__gt=0,
+                ).select_related('process', 'assigned_to').first()
         except (ValueError, Process.DoesNotExist):
             pass
 
-    # Build items with stock info for dropdown (exclude completed process)
+    # Include all process stages so completed and rejected stock can be reprocessed.
     items_with_stock = []
     for item in items:
         stock_entries = item.process_entries.filter(
             quantity__gt=0
-        ).exclude(
-            process__is_completed_process=True
         ).select_related('process', 'assigned_to')
         items_with_stock.append({
             'item': item,
@@ -708,14 +719,14 @@ def stock_move_view(request):
 @sgi_login_required
 def process_wise_stock(request):
     """Process-wise stock view — shows stock by process in tabs."""
-    processes = Process.objects.filter(is_active=True).order_by('order')
+    processes = Process.objects.filter(is_active=True, is_rejected_process=False).order_by('order')
     search = request.GET.get('q', '').strip()
     selected_process_id = request.GET.get('process', '').strip()
 
     # Get all entries with stock
     entries_qs = ItemProcess.objects.filter(
         quantity__gt=0
-    ).select_related('item', 'process', 'assigned_to')
+    ).exclude(process__is_rejected_process=True).select_related('item', 'process', 'assigned_to')
 
     if search:
         entries_qs = entries_qs.filter(
@@ -835,6 +846,60 @@ def completed_stock(request):
         'total_qty': total_qty,
         'search': search,
         'page_title': 'Completed Stock',
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
+    })
+
+
+@sgi_login_required
+def rejected_stock(request):
+    """Show paginated stock totals in the special Rejected process."""
+    rejected = get_rejected_process()
+    search = request.GET.get('q', '').strip()
+    entries_qs = ItemProcess.objects.filter(
+        process=rejected, quantity__gt=0
+    ).select_related('item')
+    if search:
+        entries_qs = entries_qs.filter(
+            Q(item__code__icontains=search) | Q(item__name__icontains=search)
+        )
+
+    from collections import defaultdict
+    items_map = defaultdict(lambda: {'item': None, 'entries': [], 'total': 0})
+    for entry in entries_qs:
+        items_map[entry.item_id]['item'] = entry.item
+        items_map[entry.item_id]['entries'].append(entry)
+        items_map[entry.item_id]['total'] += entry.quantity
+
+    all_rejected_items = sorted(items_map.values(), key=lambda row: row['item'].code)
+    total_items = len(all_rejected_items)
+    total_qty = sum(row['total'] for row in all_rejected_items)
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
+    if per_page == 'all':
+        rejected_items = all_rejected_items
+        page_obj = None
+        start_index = 1 if total_items else 0
+        end_index = total_items
+        total_count = total_items
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(all_rejected_items, per_page_int)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        rejected_items = page_obj.object_list
+        start_index = (page_obj.number - 1) * per_page_int + 1 if total_items else 0
+        end_index = min(page_obj.number * per_page_int, total_items)
+        total_count = total_items
+
+    return render(request, 'sgierp/inventory/rejected.html', {
+        'rejected_process': rejected,
+        'rejected_items': rejected_items,
+        'total_items': total_items,
+        'total_qty': total_qty,
+        'search': search,
+        'page_title': 'Rejected Stock',
         'page_obj': page_obj,
         'per_page': per_page,
         'start_index': start_index,

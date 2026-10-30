@@ -65,6 +65,17 @@
       </div>
     </div>
 
+    <div class="sgi-form-group">
+      <label class="sgi-check-label">
+        <input type="checkbox" name="is_rejected_process"
+          {% if process.is_rejected_process %}checked{% endif %}>
+        This is the <strong>Rejected</strong> process
+      </label>
+      <div class="sgi-input-hint" style="margin-top:6px;">
+        Only one process can be marked as Rejected. Rejected stock is tracked separately from production and completed stock.
+      </div>
+    </div>
+
     <div style="display:flex;gap:12px;margin-top:8px;">
       <button type="submit" class="btn-sgi btn-sgi-primary">
         <i class="bi bi-check-lg"></i> Save Process

@@ -1,5 +1,7 @@
 """SGIERP Machine views."""
 import json
+import csv
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
@@ -317,3 +319,39 @@ def machine_detail(request, machine_id):
         'total_count': total_count,
     }
     return render(request, 'sgierp/machines/detail.html', context)
+
+
+@sgi_login_required
+def machine_bom_export(request, machine_id):
+    """Download the complete machine BOM as an Excel-compatible CSV."""
+    machine = get_object_or_404(Machine, id=machine_id)
+    bom_items = list(
+        machine.bom_items.select_related('item').order_by('item__code', 'item_id')
+    )
+    completed = get_completed_process()
+    available_by_item = {}
+    if completed and bom_items:
+        available_by_item = dict(
+            ItemProcess.objects.filter(
+                process=completed,
+                item_id__in=[entry.item_id for entry in bom_items],
+            ).values('item_id').order_by().annotate(total=Sum('quantity')).values_list('item_id', 'total')
+        )
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response.write('\ufeff')
+    response['Content-Disposition'] = f'attachment; filename="{machine.code}_bom.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['#', 'Item Code', 'Item Name', 'Quantity / Machine', 'Unit', 'Completed Stock Available', 'Sufficient for 1 Unit?'])
+    for index, entry in enumerate(bom_items, start=1):
+        available = available_by_item.get(entry.item_id) or 0
+        writer.writerow([
+            index,
+            entry.item.code,
+            entry.item.name,
+            entry.quantity_required,
+            entry.item.unit,
+            available,
+            'Yes' if available >= entry.quantity_required else 'No',
+        ])
+    return response

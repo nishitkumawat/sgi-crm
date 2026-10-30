@@ -56,6 +56,9 @@
       <div class="card-icon"><i class="bi bi-list-ul"></i></div>
       Bill of Materials ({{ total_count }} components)
     </div>
+    <a href="{% url 'sgierp:machine_bom_export' machine.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm no-loader">
+      <i class="bi bi-download"></i> Download Excel
+    </a>
   </div>
   <div class="sgi-table-wrap">
     {% if enriched_bom %}

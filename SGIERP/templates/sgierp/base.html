@@ -67,9 +67,9 @@
         <i class="bi bi-person-workspace sgi-icon"></i>
         <span>Stock by Assignee</span>
       </a>
-      <a href="{% url 'sgierp:inventory_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inventory_setup' or request.resolver_match.url_name == 'settings_processes' or request.resolver_match.url_name == 'settings_assignees' %}active{% endif %}">
+      <a href="{% url 'sgierp:inventory_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inventory_setup' or request.resolver_match.url_name == 'settings_processes' or request.resolver_match.url_name == 'settings_assignees' or request.resolver_match.url_name == 'rejected_stock' %}active{% endif %}">
         <i class="bi bi-diagram-3-fill sgi-icon"></i>
-        <span>Processes & Assignees</span>
+        <span>Extra</span>
       </a>
 
       <div class="sidebar-section">PRODUCTION</div>

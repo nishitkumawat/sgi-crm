@@ -46,6 +46,8 @@
           <td>
             {% if p.is_completed_process %}
             <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-circle"></i> Completed</span>
+            {% elif p.is_rejected_process %}
+            <span class="sgi-badge sgi-badge-red"><i class="bi bi-x-circle"></i> Rejected</span>
             {% else %}
             <span class="sgi-badge sgi-badge-grey">Process</span>
             {% endif %}

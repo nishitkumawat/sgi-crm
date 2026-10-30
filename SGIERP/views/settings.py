@@ -23,7 +23,7 @@ def settings_view(request):
     # Check which settings page is being requested
     url_name = request.resolver_match.url_name
 
-    if url_name in ('inventory_setup', 'settings_processes', 'settings_assignees') and user.erp_profile.role != 'admin':
+    if url_name in ('settings_processes', 'settings_assignees') and user.erp_profile.role != 'admin':
         return redirect('sgierp:dashboard')
 
     if url_name == 'inventory_setup':
@@ -64,6 +64,7 @@ def process_create_edit(request, process_id=None):
         description = request.POST.get('description', '').strip()
         is_active = request.POST.get('is_active') == 'on'
         is_completed = request.POST.get('is_completed_process') == 'on'
+        is_rejected = request.POST.get('is_rejected_process') == 'on'
         order = request.POST.get('order', 0)
 
         errors = []
@@ -83,6 +84,15 @@ def process_create_edit(request, process_id=None):
             if existing_completed.exists():
                 errors.append('Only one process can be marked as Completed.')
 
+        if is_rejected:
+            if is_completed:
+                errors.append('A process cannot be marked as both Completed and Rejected.')
+            existing_rejected = Process.objects.filter(is_rejected_process=True)
+            if process:
+                existing_rejected = existing_rejected.exclude(id=process.id)
+            if existing_rejected.exists():
+                errors.append('Only one process can be marked as Rejected.')
+
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -96,6 +106,7 @@ def process_create_edit(request, process_id=None):
                 process.description = description
                 process.is_active = is_active
                 process.is_completed_process = is_completed
+                process.is_rejected_process = is_rejected
                 process.order = int(order) if order else 0
                 process.save()
                 messages.success(request, f'Process "{name}" updated successfully.')
@@ -106,6 +117,7 @@ def process_create_edit(request, process_id=None):
                     description=description,
                     is_active=is_active,
                     is_completed_process=is_completed,
+                    is_rejected_process=is_rejected,
                     order=int(order) if order else 0,
                     created_by=user
                 )

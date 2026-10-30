@@ -82,6 +82,9 @@
               <td><span class="sgi-badge sgi-badge-green">{{ completed_process.name }}</span></td>
               <td><strong>{{ entry.total|floatformat:2 }}</strong> <span style="color:var(--sgi-text-muted);">{{ entry.item.unit }}</span></td>
               <td>
+                <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}&process={{ completed_process.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move back to another process" aria-label="Move {{ entry.item.code }} back to another process">
+                  <i class="bi bi-arrow-left-right"></i>
+                </a>
                 <a href="{% url 'sgierp:item_detail' entry.item.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View Item" aria-label="View {{ entry.item.code }}">
                   <i class="bi bi-eye"></i>
                 </a>

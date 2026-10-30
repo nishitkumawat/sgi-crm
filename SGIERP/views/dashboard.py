@@ -17,11 +17,12 @@ def dashboard(request):
     # Recent entries
     recent_entries = ItemProcess.objects.select_related(
         'item', 'process', 'assigned_to'
-    ).filter(quantity__gt=0).order_by('-updated_at')[:8]
+    ).filter(quantity__gt=0).exclude(process__is_rejected_process=True).order_by('-updated_at')[:8]
 
     # Process-wise stock summary
     process_stock_raw = (
         ItemProcess.objects.filter(quantity__gt=0)
+        .exclude(process__is_rejected_process=True)
         .values('process__name', 'process__is_completed_process')
         .annotate(total=Sum('quantity'))
         .order_by('process__order')

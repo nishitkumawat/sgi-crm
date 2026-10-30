@@ -100,7 +100,7 @@
             <td><span class="fw-600">{{ entry.item.code }}</span></td>
             <td>{{ entry.item.name }}</td>
             <td>
-              <span class="sgi-badge {% if entry.process.is_completed_process %}sgi-badge-green{% else %}sgi-badge-orange{% endif %}" style="font-size:11px;">
+              <span class="sgi-badge {% if entry.process.is_completed_process %}sgi-badge-green{% elif entry.process.is_rejected_process %}sgi-badge-red{% else %}sgi-badge-orange{% endif %}" style="font-size:11px;">
                 {{ entry.process.name }}
               </span>
             </td>

@@ -8,7 +8,7 @@ from .models import (
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ['name', 'order', 'is_active', 'is_completed_process']
+    list_display = ['name', 'order', 'is_active', 'is_completed_process', 'is_rejected_process']
     list_editable = ['order', 'is_active']
     search_fields = ['name']
 

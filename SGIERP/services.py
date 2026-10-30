@@ -21,6 +21,11 @@ def get_completed_process():
     return Process.objects.filter(is_completed_process=True, is_active=True).first()
 
 
+def get_rejected_process():
+    """Return the special Rejected process, or None."""
+    return Process.objects.filter(is_rejected_process=True, is_active=True).first()
+
+
 # ============================================================
 # INITIAL STOCK ENTRY
 # ============================================================
@@ -31,8 +36,10 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
     Creates or updates the ItemProcess record.
     """
     completed = get_completed_process()
-    if completed and process.id == completed.id:
-        assigned_to = None  # No assignment for completed process
+    rejected = get_rejected_process()
+    is_terminal_process = (completed and process.id == completed.id) or (rejected and process.id == rejected.id)
+    if is_terminal_process:
+        assigned_to = None  # Terminal stock is not assigned to a worker
 
     entry, created = ItemProcess.objects.get_or_create(
         item=item,
@@ -41,7 +48,10 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
     )
     if not created:
         entry.quantity = F('quantity') + quantity
-        if assigned_to:
+        if is_terminal_process:
+            entry.assigned_to = None
+            entry.assigned_at = None
+        elif assigned_to:
             entry.assigned_to = assigned_to
             entry.assigned_at = timezone.now()
         entry.save(update_fields=['quantity', 'assigned_to', 'assigned_at', 'updated_at'])
@@ -80,8 +90,10 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
     Reduces source item quantity and adds target item quantity (optionally in a different process).
     """
     completed = get_completed_process()
-    if completed and target_process.id == completed.id:
-        assigned_to = None  # No assignment for completed process
+    rejected = get_rejected_process()
+    is_terminal_process = (completed and target_process.id == completed.id) or (rejected and target_process.id == rejected.id)
+    if is_terminal_process:
+        assigned_to = None  # Terminal stock is not assigned to a worker
 
     # Get or create source entry
     source_entry, _ = ItemProcess.objects.get_or_create(
@@ -108,7 +120,10 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
     
     # Add target quantity
     target_entry.quantity = F('quantity') + target_quantity
-    if assigned_to:
+    if is_terminal_process:
+        target_entry.assigned_to = None
+        target_entry.assigned_at = None
+    elif assigned_to:
         target_entry.assigned_to = assigned_to
         target_entry.assigned_at = timezone.now()
     target_entry.save(update_fields=['quantity', 'assigned_to', 'assigned_at', 'updated_at'])
@@ -159,6 +174,8 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
     source_process = Process.objects.get(id=source_process_id, is_active=True)
     dest_process = Process.objects.get(id=destination_process_id, is_active=True)
     completed = get_completed_process()
+    rejected = get_rejected_process()
+    is_terminal_destination = (completed and dest_process.id == completed.id) or (rejected and dest_process.id == rejected.id)
 
     # Validations
     if quantity <= 0:
@@ -168,7 +185,7 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
         raise ValidationError("Source and destination processes cannot be the same.")
 
     # If moving to Completed, clear assignment
-    if completed and dest_process.id == completed.id:
+    if is_terminal_destination:
         assigned_to = None
 
     # Get or create source entry
@@ -200,7 +217,10 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
         defaults={'quantity': 0, 'assigned_to': assigned_to}
     )
     dest_entry.quantity = F('quantity') + quantity
-    if assigned_to:
+    if is_terminal_destination:
+        dest_entry.assigned_to = None
+        dest_entry.assigned_at = None
+    elif assigned_to:
         dest_entry.assigned_to = assigned_to
         dest_entry.assigned_at = timezone.now()
     dest_entry.save(update_fields=['quantity', 'assigned_to', 'assigned_at', 'updated_at'])
@@ -347,7 +367,9 @@ def get_dashboard_stats():
 
     today = timezone.now().date()
     completed = get_completed_process()
-    process_entries_qs = ItemProcess.objects.filter(quantity__gt=0)
+    process_entries_qs = ItemProcess.objects.filter(quantity__gt=0).exclude(
+        process__is_rejected_process=True
+    )
 
     total_items = Item.objects.filter(is_active=True).count()
     active_entries = process_entries_qs.count()
@@ -355,19 +377,18 @@ def get_dashboard_stats():
     # Quantities by process
     process_totals = list(
         process_entries_qs.values(
-            'process__name', 'process__id', 'process__is_completed_process'
+            'process__name', 'process__id', 'process__is_completed_process', 'process__is_rejected_process'
         ).annotate(total=Sum('quantity')).order_by('process__order')
     )
 
     in_production = sum(
         p['total'] for p in process_totals
-        if not p['process__is_completed_process']
+        if not p['process__is_completed_process'] and not p['process__is_rejected_process']
     ) or 0
     completed_stock = sum(
         p['total'] for p in process_totals
         if p['process__is_completed_process']
     ) or 0
-
     total_machines = Machine.objects.filter(is_active=True).count()
     dispatches_today = MachineDispatch.objects.filter(dispatch_date__date=today).count()
 

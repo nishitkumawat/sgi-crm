@@ -1,0 +1,58 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Rejected Stock{% endblock %}
+{% block page_title %}Rejected Stock{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:inventory' %}" class="breadcrumb-parent">Inventory</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">Rejected Stock</span>
+{% endblock %}
+
+{% block content %}
+{% if not rejected_process %}
+<div class="sgi-card"><div class="sgi-card-body"><div class="sgi-empty">
+  <h4>No Rejected Process Configured</h4>
+  <p>Create a process named Rejected and mark it as the special Rejected process in Settings.</p>
+  <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary" style="margin-top:14px;">
+    <i class="bi bi-plus-lg"></i> Add Process
+  </a>
+</div></div></div>
+{% else %}
+<div class="sgi-content-scrollable">
+  <div class="sgi-card">
+    <div class="sgi-card-header">
+      <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-x-circle-fill"></i></div> Rejected Stock ({{ total_count }})</div>
+      <div class="sgi-card-actions"><a href="{% url 'sgierp:stock_move' %}" class="btn-sgi btn-sgi-primary"><i class="bi bi-arrow-left-right"></i> Move Back to Process</a></div>
+    </div>
+    <div class="filters-bar">
+      <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;">
+        <div class="sgi-input-group" style="flex:1;min-width:200px;">
+          <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+          <input type="text" class="sgi-input" name="q" value="{{ search }}" placeholder="Item code or name..." style="border:none;">
+        </div>
+        <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-funnel"></i> Apply</button>
+        {% if search %}<a href="{% url 'sgierp:rejected_stock' %}" class="btn-sgi btn-sgi-outline"><i class="bi bi-x"></i> Clear</a>{% endif %}
+      </form>
+    </div>
+    <div class="sgi-card-body"><div class="sgi-table-wrap">
+      {% if rejected_items %}
+      <table class="sgi-table" id="rejectedTable">
+        <thead><tr><th>Item Code</th><th>Item Name</th><th>Process</th><th>Qty Rejected</th><th></th></tr></thead>
+        <tbody>{% for entry in rejected_items %}
+          <tr>
+            <td><a href="{% url 'sgierp:item_detail' entry.item.id %}" style="color:var(--sgi-primary);font-weight:600;">{{ entry.item.code }}</a></td>
+            <td>{{ entry.item.name }}</td>
+            <td><span class="sgi-badge sgi-badge-red">{{ rejected_process.name }}</span></td>
+            <td><strong>{{ entry.total|floatformat:2 }}</strong> <span style="color:var(--sgi-text-muted);">{{ entry.item.unit }}</span></td>
+            <td><a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}&process={{ rejected_process.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Reprocess {{ entry.item.code }}" aria-label="Reprocess {{ entry.item.code }}"><i class="bi bi-arrow-left-right"></i></a></td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty"><div class="sgi-empty-icon">📦</div><h4>No rejected stock{% if search %} matching “{{ search }}”{% endif %}</h4><p>Move rejected quantities to the <strong>{{ rejected_process.name }}</strong> process to track them here.</p></div>
+      {% endif %}
+    </div></div>
+    {% if total_count > 0 %}{% include 'sgierp/components/pagination.html' %}{% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

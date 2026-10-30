@@ -17,6 +17,10 @@ class Process(models.Model):
         default=False,
         help_text="Mark this as the special 'Completed' process. Only one process should have this flag."
     )
+    is_rejected_process = models.BooleanField(
+        default=False,
+        help_text="Mark this as the special 'Rejected' process. Only one process should have this flag."
+    )
     order = models.PositiveIntegerField(default=0, help_text="Display order in process flow")
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
@@ -99,9 +103,11 @@ class Item(models.Model):
         return f"{self.code} - {self.name}"
 
     def total_quantity(self):
-        """Total quantity across all process entries."""
+        """Total usable quantity, excluding the special Rejected process."""
         from django.db.models import Sum
-        result = self.process_entries.aggregate(total=Sum('quantity'))
+        result = self.process_entries.exclude(
+            process__is_rejected_process=True
+        ).aggregate(total=Sum('quantity'))
         return result['total'] or 0
 
     def completed_quantity(self):
@@ -116,12 +122,12 @@ class Item(models.Model):
         return result['total'] or 0
 
     def in_production_quantity(self):
-        """Total quantity in non-Completed processes."""
+        """Total quantity in ordinary production processes."""
         from django.db.models import Sum
-        completed = Process.objects.filter(is_completed_process=True).first()
-        qs = self.process_entries.all()
-        if completed:
-            qs = qs.exclude(process=completed)
+        qs = self.process_entries.exclude(
+            models.Q(process__is_completed_process=True) |
+            models.Q(process__is_rejected_process=True)
+        )
         result = qs.aggregate(total=Sum('quantity'))
         return result['total'] or 0
 

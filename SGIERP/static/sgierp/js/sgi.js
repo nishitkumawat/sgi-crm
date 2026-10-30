@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const href = this.getAttribute('href');
       // Skip if it's a same-page anchor, mailto, tel, or has data-confirm
       if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') ||
-          this.hasAttribute('data-confirm') || this.classList.contains('no-loader')) {
+          this.hasAttribute('download') || this.hasAttribute('data-confirm') || this.classList.contains('no-loader')) {
         return;
       }
       showPageLoader();

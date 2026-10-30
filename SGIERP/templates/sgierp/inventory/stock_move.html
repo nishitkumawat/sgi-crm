@@ -203,6 +203,9 @@
         <i class="bi bi-check-circle"></i> Quick: Move to {{ completed_process.name }}
       </button>
       {% endif %}
+      <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" style="margin-top:6px;" onclick="selectRejectedProcess()">
+        <i class="bi bi-x-circle"></i> Quick: Move to Rejected
+      </button>
     </div>
 
     <!-- Assignee -->
@@ -315,7 +318,7 @@ const itemsData = [
 
 const processesData = [
   {% for p in processes %}
-  { id: {{ p.id }}, name: "{{ p.name }}" {% if p.is_completed_process %}, isCompleted: true{% endif %} },
+  { id: {{ p.id }}, name: "{{ p.name }}" {% if p.is_completed_process %}, isCompleted: true{% endif %}{% if p.is_rejected_process %}, isRejected: true{% endif %} },
   {% endfor %}
 ];
 
@@ -380,11 +383,12 @@ function updateAssigneeDropdown() {
   const selectedProcess = processesData.find(p => p.id == toProcessId);
   
   if (toProcessId && selectedProcess) {
-    const isCompleted = selectedProcess.isCompleted;
-    if (isCompleted) {
+    const isTerminal = selectedProcess.isCompleted || selectedProcess.isRejected;
+    if (isTerminal) {
       assigneeSelect.disabled = true;
       assigneeSelect.value = '';
       assigneeHint.style.display = 'block';
+      assigneeHint.innerHTML = `<i class="bi bi-info-circle"></i> Assignee is not required for ${selectedProcess.name} process`;
     } else {
       assigneeSelect.disabled = false;
       assigneeHint.style.display = 'none';
@@ -423,6 +427,14 @@ function selectCompletedProcess() {
     }
     updateAssigneeDropdown();
   }
+}
+
+function selectRejectedProcess() {
+  const rejectedProcess = processesData.find(process => process.isRejected);
+  if (!rejectedProcess) return;
+  document.getElementById('to_process_id').value = rejectedProcess.id;
+  document.getElementById('to_process_search').value = rejectedProcess.name;
+  updateAssigneeDropdown();
 }
 
 // Auto-select on page load if item is pre-selected
@@ -522,7 +534,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const div = document.createElement('div');
       div.className = 'suggestion-item';
       div.innerHTML = `
-        <div class="name">${process.name}${process.isCompleted ? ' <i class="bi bi-check-circle-fill" style="color:var(--sgi-success);"></i>' : ''}</div>
+        <div class="name">${process.name}${process.isCompleted ? ' <i class="bi bi-check-circle-fill" style="color:var(--sgi-success);"></i>' : process.isRejected ? ' <i class="bi bi-x-circle-fill" style="color:var(--sgi-danger);"></i>' : ''}</div>
       `;
       div.addEventListener('click', function() {
         toProcessSearch.value = process.name;

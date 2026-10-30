@@ -77,7 +77,7 @@
         {% for ps in process_stock %}
         <tr>
           <td>
-            <span class="sgi-badge {% if ps.is_completed_process %}sgi-badge-green{% else %}sgi-badge-orange{% endif %}">
+            <span class="sgi-badge {% if ps.is_completed_process %}sgi-badge-green{% elif ps.is_rejected_process %}sgi-badge-red{% else %}sgi-badge-orange{% endif %}">
               {{ ps.process_name }}
             </span>
           </td>
