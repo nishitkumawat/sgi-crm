@@ -5,7 +5,7 @@ from SGIERP.views import (
     dashboard,
     item_catalog, inventory_list, item_create, item_edit, item_detail, item_delete, add_stock, inventory_entry_delete, stock_move_view, completed_stock, rejected_stock, stock_history, item_groups, process_wise_stock, assignee_wise_stock,
     machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete,
-    dispatch_list, dispatch_create, dispatch_detail, dispatch_challan,
+    dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete,
     challan_list, challan_create, challan_detail, challan_print,
     settings_view, process_create_edit, process_delete, user_list, user_create_edit, assignee_create_edit, assignee_delete, save_erp_config,
     error_view,
@@ -56,6 +56,7 @@ urlpatterns = [
     path('dispatch/', dispatch_list, name='dispatch_list'),
     path('dispatch/new/', dispatch_create, name='dispatch_create'),
     path('dispatch/<int:dispatch_id>/', dispatch_detail, name='dispatch_detail'),
+    path('dispatch/<int:dispatch_id>/delete/', dispatch_delete, name='dispatch_delete'),
     path('dispatch/<int:dispatch_id>/challan/', dispatch_challan, name='dispatch_challan'),
 
     # ---- Challans ----

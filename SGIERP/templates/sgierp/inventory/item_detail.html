@@ -12,7 +12,7 @@
 <div class="sgi-card" style="margin-bottom:20px;">
   <div class="sgi-card-body" style="display:flex;gap:20px;align-items:flex-start;">
     {% if item.image %}
-    <img src="{{ item.image.url }}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--sgi-border);">
+    <img src="{{ item.image.url }}" class="item-image-thumb" alt="{{ item.name }}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--sgi-border);cursor:zoom-in;">
     {% else %}
     <div style="width:80px;height:80px;border-radius:10px;background:var(--sgi-primary-bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--sgi-primary);flex-shrink:0;">
       <i class="bi bi-box-seam"></i>

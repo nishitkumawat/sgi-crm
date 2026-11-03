@@ -1,14 +1,16 @@
 """SGIERP Machine Dispatch views."""
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Q
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from SGIERP.decorators import sgi_login_required, get_sgi_user
-from SGIERP.models import Machine, MachineDispatch, MachineBOM, ItemProcess, ERPConfig
-from SGIERP.services import dispatch_machine, get_completed_process
+from SGIERP.models import Machine, MachineDispatch, MachineBOM, ItemProcess, Item, ERPConfig
+from SGIERP.services import dispatch_machine, dispatch_item, delete_dispatch, get_completed_process
 
 
 def _get_default_per_page():
@@ -95,6 +97,7 @@ def dispatch_create(request):
     completed = get_completed_process()
 
     selected_machine = None
+    selected_item = None
     bom_preview = []
 
     machine_id = request.GET.get('machine') or request.POST.get('machine_id')
@@ -127,6 +130,14 @@ def dispatch_create(request):
                 })
         except Machine.DoesNotExist:
             pass
+    item_id = request.GET.get('item') or request.POST.get('item_id')
+    if item_id:
+        selected_item = Item.objects.filter(id=item_id, is_active=True).first()
+
+    completed_items = Item.objects.filter(is_active=True, process_entries__process=completed,
+        process_entries__quantity__gt=0).distinct().annotate(
+            total_completed=Sum('process_entries__quantity', filter=Q(process_entries__process=completed))
+        ) if completed else Item.objects.none()
 
     if request.method == 'POST':
         mid = request.POST.get('machine_id', '').strip()
@@ -137,8 +148,12 @@ def dispatch_create(request):
         remarks = request.POST.get('remarks', '').strip()
 
         errors = []
-        if not mid:
-            errors.append('Please select a machine.')
+        item_id = request.POST.get('item_id', '').strip()
+        direct_item = request.POST.get('dispatch_mode') == 'single_item'
+        if direct_item and not item_id:
+            errors.append('Please select an item from the lookup list.')
+        elif not direct_item and not mid:
+            errors.append('Please select a product.')
 
         try:
             mcount = int(mcount_str)
@@ -153,6 +168,7 @@ def dispatch_create(request):
                 messages.error(request, e)
             return render(request, 'sgierp/dispatch/create.html', {
                 'machines': machines, 'selected_machine': selected_machine,
+                'completed_items': completed_items, 'selected_item': selected_item,
                 'bom_preview': bom_preview, 'machine_count': machine_count,
                 'form_data': request.POST, 'page_title': 'New Dispatch',
             })
@@ -166,18 +182,14 @@ def dispatch_create(request):
                 pass
 
         try:
-            dispatch = dispatch_machine(
-                machine_id=int(mid),
-                machine_count=mcount,
-                customer_name=customer,
-                dispatch_date=dispatch_date,
-                invoice_reference=invoice,
-                remarks=remarks,
-                dispatched_by=user,
-            )
+            if direct_item:
+                quantity = Decimal(request.POST.get('item_quantity', '0'))
+                dispatch = dispatch_item(int(item_id), quantity, customer, dispatch_date, invoice, remarks, user)
+            else:
+                dispatch = dispatch_machine(int(mid), mcount, customer, dispatch_date, invoice, remarks, user)
             messages.success(
                 request,
-                f'Dispatch #{dispatch.id} created: {mcount}× {dispatch.machine.name}.'
+                f'Dispatch #{dispatch.id} created.'
             )
             return redirect('sgierp:dispatch_detail', dispatch_id=dispatch.id)
         except ValidationError as e:
@@ -187,10 +199,12 @@ def dispatch_create(request):
 
     context = {
         'machines': machines,
+        'completed_items': completed_items,
+        'selected_item': selected_item,
         'selected_machine': selected_machine,
         'bom_preview': bom_preview,
         'machine_count': machine_count,
-        'form_data': request.GET,
+        'form_data': request.POST if request.method == 'POST' else request.GET,
         'now': timezone.now(),
         'page_title': 'New Dispatch',
     }
@@ -218,6 +232,20 @@ def dispatch_detail(request, dispatch_id):
         'page_title': f'Dispatch #{dispatch.id}',
     }
     return render(request, 'sgierp/dispatch/detail.html', context)
+
+
+@sgi_login_required
+@require_POST
+def dispatch_delete(request, dispatch_id):
+    """Delete a dispatch and restore the stock it consumed."""
+    dispatch = get_object_or_404(MachineDispatch, id=dispatch_id)
+    try:
+        delete_dispatch(dispatch.id, deleted_by=get_sgi_user(request))
+    except ValidationError as error:
+        messages.error(request, error.messages[0] if error.messages else str(error))
+        return redirect('sgierp:dispatch_detail', dispatch_id=dispatch.id)
+    messages.success(request, f'Dispatch #{dispatch.id} deleted and stock restored.')
+    return redirect('sgierp:dispatch_list')
 
 
 @sgi_login_required

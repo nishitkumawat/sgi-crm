@@ -357,6 +357,85 @@ def dispatch_machine(machine_id, machine_count, customer_name='', dispatch_date=
     return dispatch
 
 
+@transaction.atomic
+def dispatch_item(item_id, quantity, customer_name='', dispatch_date=None,
+                  invoice_reference='', remarks='', dispatched_by=None):
+    """Dispatch a catalog item directly from Completed stock."""
+    if quantity <= 0:
+        raise ValidationError("Quantity must be greater than zero.")
+    item = Item.objects.get(id=item_id, is_active=True)
+    completed = get_completed_process()
+    if not completed:
+        raise ValidationError("No Completed process configured. Cannot dispatch.")
+    entry = ItemProcess.objects.select_for_update().filter(item=item, process=completed).first()
+    available = entry.quantity if entry else 0
+    if available < quantity:
+        raise ValidationError(f"Insufficient completed stock for {item.code} - {item.name}. Required: {quantity}, Available: {available}")
+    dispatch = MachineDispatch.objects.create(
+        machine=None, machine_count=1, customer_name=customer_name,
+        dispatch_date=dispatch_date or timezone.now(), invoice_reference=invoice_reference,
+        dispatched_by=dispatched_by, remarks=remarks,
+    )
+    source_assignee = entry.assigned_to
+    DispatchComponent.objects.create(dispatch=dispatch, item=item, source_entry=entry,
+        quantity_consumed=quantity, item_code_snapshot=item.code,
+        item_name_snapshot=item.name, unit_snapshot=item.unit)
+    entry.quantity = F('quantity') - quantity
+    entry.save(update_fields=['quantity', 'updated_at'])
+    entry.refresh_from_db()
+    StockHistory.objects.create(item=item, from_process=completed, to_process=completed,
+        quantity=quantity, movement_type='dispatch', from_assignee=source_assignee,
+        item_code_snapshot=item.code, item_name_snapshot=item.name, unit_snapshot=item.unit,
+        from_process_name=completed.name, to_process_name='Dispatched',
+        from_assignee_name=source_assignee.name if source_assignee else '', performed_by=dispatched_by,
+        remarks='Direct item dispatch')
+    return dispatch
+
+
+@transaction.atomic
+def delete_dispatch(dispatch_id, deleted_by=None):
+    """Remove a dispatch and restore its consumed stock, recording the reversal."""
+    dispatch = MachineDispatch.objects.select_for_update().get(id=dispatch_id)
+    completed = get_completed_process()
+    components = list(dispatch.components.select_related('item', 'source_entry__process').all())
+
+    for component in components:
+        source_entry = component.source_entry
+        if source_entry:
+            source_entry = ItemProcess.objects.select_for_update().get(id=source_entry.id)
+            process = source_entry.process
+            assignee = source_entry.assigned_to
+        else:
+            if not completed:
+                raise ValidationError('No Completed process configured; dispatch stock cannot be restored.')
+            process = completed
+            source_entry, _ = ItemProcess.objects.select_for_update().get_or_create(
+                item=component.item, process=process, defaults={'quantity': 0}
+            )
+            assignee = source_entry.assigned_to
+
+        source_entry.quantity += component.quantity_consumed
+        source_entry.save(update_fields=['quantity', 'updated_at'])
+        StockHistory.objects.create(
+            item=component.item,
+            from_process=None,
+            to_process=process,
+            quantity=component.quantity_consumed,
+            movement_type='adjustment',
+            to_assignee=assignee,
+            item_code_snapshot=component.item_code_snapshot,
+            item_name_snapshot=component.item_name_snapshot,
+            unit_snapshot=component.unit_snapshot,
+            from_process_name='Dispatch Cancelled',
+            to_process_name=process.name,
+            to_assignee_name=assignee.name if assignee else '',
+            performed_by=deleted_by,
+            remarks=f'Stock restored after deleting dispatch #{dispatch.id}.',
+        )
+
+    dispatch.delete()
+
+
 # ============================================================
 # DASHBOARD AGGREGATES
 # ============================================================

@@ -194,7 +194,7 @@
           <td>{{ forloop.counter }}</td>
           <td>{{ component.item.name }} ({{ component.item.code }})</td>
           <td>{{ component.quantity_consumed|floatformat:2 }} {{ component.item.unit }}</td>
-          <td>{{ dispatch.machine.name }} - {{ dispatch.machine.code }}</td>
+          <td>{% if dispatch.machine %}{{ dispatch.machine.name }} - {{ dispatch.machine.code }}{% else %}Direct item dispatch{% endif %}</td>
         </tr>
         {% endfor %}
         {% for i in blank_rows %}
@@ -224,3 +224,4 @@
   </main>
 </div>
 {% endblock %}
+

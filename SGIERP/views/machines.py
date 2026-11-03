@@ -1,6 +1,7 @@
 """SGIERP Machine views."""
 import json
 import csv
+import re
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -16,8 +17,17 @@ from SGIERP.models import Machine, MachineBOM, Item, MachineDispatch, ItemProces
 from SGIERP.services import get_completed_process
 
 
-def _get_default_per_page():
+def _natural_code_key(code):
+    """Sort numeric product codes and suffixes in sequence order (4, 4-A, 5)."""
+    parts = re.split(r'(\d+)', code.casefold())
+    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in parts if part)
+
+
+def _get_default_per_page(request=None):
     try:
+        user = get_sgi_user(request) if request else None
+        if user and hasattr(user, 'erp_profile'):
+            return user.erp_profile.default_per_page
         return ERPConfig.get_solo().default_per_page
     except Exception:
         return '20'
@@ -54,7 +64,7 @@ def machine_list(request):
     """List all machines."""
     user = get_sgi_user(request)
     search = request.GET.get('q', '').strip()
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
 
     machines_qs = Machine.objects.prefetch_related('bom_items__item')
     if search:
@@ -112,7 +122,7 @@ def machine_create(request):
     return render(request, 'sgierp/machines/form.html', {
         'machine': None, 'items': items, 'form_data': {},
         'page_title': 'Create Machine', 'bom_json': '[]',
-        'default_per_page': _get_default_per_page(),
+        'default_per_page': _get_default_per_page(request),
     })
 
 
@@ -131,14 +141,17 @@ def machine_edit(request, machine_id):
          'item_name': b.item.name,
          'item_image': b.item.image.url if b.item.image else '',
          'quantity': float(b.quantity_required)}
-        for b in machine.bom_items.select_related('item').all()
+        for b in sorted(
+            machine.bom_items.select_related('item').all(),
+            key=lambda entry: _natural_code_key(entry.item.code),
+        )
     ]
 
     return render(request, 'sgierp/machines/form.html', {
         'machine': machine, 'items': items,
         'page_title': f'Edit {machine.code}',
         'bom_json': json.dumps(existing_bom),
-        'default_per_page': _get_default_per_page(),
+        'default_per_page': _get_default_per_page(request),
     })
 
 
@@ -183,6 +196,8 @@ def _save_machine(request, machine=None):
         dup_check = dup_check.exclude(id=machine.id)
     if dup_check.exists():
         errors.append(f'Machine code "{code}" already exists.')
+    if Item.objects.filter(code__iexact=code).exists():
+        errors.append(f'Code "{code}" is already used by an inventory item.')
 
     try:
         bom_data = json.loads(bom_data_raw)
@@ -212,7 +227,7 @@ def _save_machine(request, machine=None):
             'form_data': request.POST,
             'page_title': f'Edit {machine.code}' if machine else 'Create Machine',
             'bom_json': bom_data_raw,
-            'default_per_page': _get_default_per_page(),
+            'default_per_page': _get_default_per_page(request),
         })
 
     with transaction.atomic():
@@ -236,7 +251,7 @@ def _save_machine(request, machine=None):
                     'form_data': request.POST,
                     'page_title': f'Edit {machine.code}' if machine else 'Create Machine',
                     'bom_json': bom_data_raw,
-                    'default_per_page': _get_default_per_page(),
+                    'default_per_page': _get_default_per_page(request),
                 })
             # Compress image before saving
             compressed_image = compress_image(image_file)
@@ -269,12 +284,15 @@ def machine_detail(request, machine_id):
     completed = get_completed_process()
 
     # Keep component order consistent between paginated and All views.
-    bom_items_qs = machine.bom_items.select_related('item').order_by('item__code', 'item_id')
-    per_page = request.GET.get('per_page', _get_default_per_page())
+    bom_items_qs = sorted(
+        machine.bom_items.select_related('item').all(),
+        key=lambda entry: _natural_code_key(entry.item.code),
+    )
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
     if per_page == 'all':
         bom_items = bom_items_qs
         page_obj = None
-        total_count = bom_items_qs.count()
+        total_count = len(bom_items_qs)
         start_index = 1 if total_count else 0
         end_index = total_count
     else:
@@ -313,7 +331,7 @@ def machine_detail(request, machine_id):
         'page_title': f'{machine.code} - {machine.name}',
         'page_obj': page_obj,
         'per_page': per_page,
-        'default_per_page': _get_default_per_page(),
+        'default_per_page': _get_default_per_page(request),
         'start_index': start_index,
         'end_index': end_index,
         'total_count': total_count,
@@ -326,7 +344,10 @@ def machine_bom_export(request, machine_id):
     """Download the complete machine BOM as an Excel-compatible CSV."""
     machine = get_object_or_404(Machine, id=machine_id)
     bom_items = list(
-        machine.bom_items.select_related('item').order_by('item__code', 'item_id')
+        sorted(
+            machine.bom_items.select_related('item').all(),
+            key=lambda entry: _natural_code_key(entry.item.code),
+        )
     )
     completed = get_completed_process()
     available_by_item = {}
@@ -355,3 +376,4 @@ def machine_bom_export(request, machine_id):
             'Yes' if available >= entry.quantity_required else 'No',
         ])
     return response
+

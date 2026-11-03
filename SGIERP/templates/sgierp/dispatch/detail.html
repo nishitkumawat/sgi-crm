@@ -11,14 +11,14 @@
 <div class="sgi-card" style="margin-bottom:20px;">
   <div class="sgi-card-body" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
     <div style="flex:1;min-width:200px;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Machine</div>
-      <a href="{% url 'sgierp:machine_detail' dispatch.machine.id %}" style="font-size:20px;font-weight:800;color:var(--sgi-text);text-decoration:none;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Product / Item</div>
+      {% if dispatch.machine %}<a href="{% url 'sgierp:machine_detail' dispatch.machine.id %}" style="font-size:20px;font-weight:800;color:var(--sgi-text);text-decoration:none;">
         {{ dispatch.machine.code }} — {{ dispatch.machine.name }}
-      </a>
+      </a>{% else %}<div style="font-size:20px;font-weight:800;">Single item</div>{% endif %}
     </div>
     <div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Units</div>
-      <div style="font-size:24px;font-weight:800;">{{ dispatch.machine_count }}</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">{% if dispatch.machine %}Units{% else %}Quantity{% endif %}</div>
+      <div style="font-size:24px;font-weight:800;">{% if dispatch.machine %}{{ dispatch.machine_count }}{% else %}{% with component=components.first %}{{ component.quantity_consumed|floatformat:2 }} {{ component.unit_snapshot }}{% endwith %}{% endif %}</div>
     </div>
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Date</div>
@@ -60,6 +60,12 @@
     <a href="{% url 'sgierp:dispatch_challan' dispatch.id %}" target="_blank" class="btn-sgi btn-sgi-primary btn-sgi-sm">
       <i class="bi bi-printer"></i> Print Challan
     </a>
+    <form method="POST" action="{% url 'sgierp:dispatch_delete' dispatch.id %}" style="margin:0;" onsubmit="return confirm('Delete dispatch #{{ dispatch.id }}? The consumed stock will be restored to Completed.');">
+      {% csrf_token %}
+      <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-sm" style="color:var(--sgi-danger);">
+        <i class="bi bi-trash3"></i> Delete Dispatch
+      </button>
+    </form>
   </div>
   <div class="sgi-table-wrap">
     {% if components %}
@@ -94,3 +100,4 @@
   </div>
 </div>
 {% endblock %}
+

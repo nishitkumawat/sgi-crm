@@ -11,7 +11,7 @@ from PIL import Image
 import io
 
 from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
-from SGIERP.models import Item, Process, ItemProcess, Assignee, StockHistory, ERPConfig
+from SGIERP.models import Item, Machine, Process, ItemProcess, Assignee, StockHistory, ERPConfig
 from SGIERP.services import add_initial_stock, move_stock, get_completed_process, get_rejected_process
 
 
@@ -286,8 +286,8 @@ def item_create(request):
                         return render(request, 'sgierp/inventory/item_form.html', context)
 
                 # Check if code already exists
-                if Item.objects.filter(code=code).exists():
-                    messages.error(request, f'Item code "{code}" already exists.')
+                if Item.objects.filter(code__iexact=code).exists() or Machine.objects.filter(code__iexact=code).exists():
+                    messages.error(request, f'Code "{code}" is already used by an item or product.')
                 else:
                     item = Item.objects.create(
                         code=code,

@@ -322,7 +322,7 @@ class MachineBOM(models.Model):
 # ============================================================
 class MachineDispatch(models.Model):
     """Dispatch header — records each dispatch transaction."""
-    machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name='dispatches')
+    machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name='dispatches', null=True, blank=True)
     machine_count = models.PositiveIntegerField(default=1)
     customer_name = models.CharField(max_length=200, blank=True, default='')
     dispatch_date = models.DateTimeField(default=timezone.now)
@@ -341,7 +341,8 @@ class MachineDispatch(models.Model):
         ordering = ['-dispatch_date']
 
     def __str__(self):
-        return f"Dispatch #{self.id}: {self.machine_count}× {self.machine.name} on {self.dispatch_date.date()}"
+        target = self.machine.name if self.machine_id else 'Single item'
+        return f"Dispatch #{self.id}: {self.machine_count}× {target} on {self.dispatch_date.date()}"
 
 
 # ============================================================

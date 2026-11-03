@@ -1,9 +1,9 @@
 {% extends 'sgierp/base.html' %}
 {% load sgi_tags %}
-{% block title %}Machines{% endblock %}
-{% block page_title %}Machines{% endblock %}
+{% block title %}Products{% endblock %}
+{% block page_title %}Products{% endblock %}
 {% block breadcrumb %}
-<span class="page-title">Machines</span>
+<span class="page-title">Products</span>
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,7 @@
   <div class="sgi-card-header">
     <div class="sgi-card-title">
       <div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div>
-      Machine Master ({{ machines|length }})
+      Product Master ({{ machines|length }})
     </div>
     <div class="sgi-card-actions">
       <div class="sgi-card-actions-row">
@@ -22,7 +22,7 @@
       </div>
       <div class="sgi-card-actions-primary">
         <a href="{% url 'sgierp:machine_create' %}" class="btn-sgi btn-sgi-primary">
-          <i class="bi bi-plus-lg"></i> Add Machine
+          <i class="bi bi-plus-lg"></i> Add Product
         </a>
       </div>
     </div>
@@ -97,7 +97,7 @@
               <a href="{% url 'sgierp:dispatch_create' %}?machine={{ machine.id }}" class="btn-sgi btn-sgi-primary btn-sgi-icon btn-sgi-sm" title="Dispatch">
                 <i class="bi bi-truck"></i>
               </a>
-              <form method="POST" action="{% url 'sgierp:machine_delete' machine.id %}" onsubmit="return confirm('Delete machine {{ machine.code }}? Its BOM will also be removed. Machines with dispatch history cannot be deleted.');">
+              <form method="POST" action="{% url 'sgierp:machine_delete' machine.id %}" onsubmit="return confirm('Delete machine {{ machine.code }}? Its BOM will also be removed. Products with dispatch history cannot be deleted.');">
                 {% csrf_token %}
                 <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Delete machine" aria-label="Delete {{ machine.code }}" style="color:var(--sgi-danger);">
                   <i class="bi bi-trash"></i>
@@ -117,7 +117,7 @@
       {% if not search %}
       <div style="margin-top:16px;">
         <a href="{% url 'sgierp:machine_create' %}" class="btn-sgi btn-sgi-primary">
-          <i class="bi bi-plus-lg"></i> Add Machine
+          <i class="bi bi-plus-lg"></i> Add Product
         </a>
       </div>
       {% endif %}
@@ -133,3 +133,5 @@
 </div>
 </div>
 {% endblock %}
+
+

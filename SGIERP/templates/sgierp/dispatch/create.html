@@ -8,6 +8,22 @@
 {% endblock %}
 
 {% block content %}
+<style>
+  .dispatch-mode-toggle { display:inline-flex;gap:4px;padding:4px;background:var(--sgi-bg);border:1px solid var(--sgi-border);border-radius:9px;margin-bottom:16px; }
+  .dispatch-mode-toggle button { border:0;border-radius:6px;background:transparent;color:var(--sgi-text-muted);font:inherit;font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer; }
+  .dispatch-mode-toggle button.active { background:var(--sgi-primary);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  .dispatch-product-picker,.dispatch-item-picker { position:relative; }
+  .dispatch-product-picker .autocomplete-suggestions,.dispatch-item-picker .autocomplete-suggestions { position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--sgi-border);border-radius:6px;max-height:200px;overflow-y:auto;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none; }
+  .dispatch-product-picker .autocomplete-suggestions.show,.dispatch-item-picker .autocomplete-suggestions.show { display:block; }
+  .dispatch-product-picker .suggestion-item,.dispatch-item-picker .suggestion-item { padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--sgi-border); }
+  .dispatch-product-picker .suggestion-item:last-child,.dispatch-item-picker .suggestion-item:last-child { border-bottom:0; }
+  .dispatch-product-picker .suggestion-item:hover,.dispatch-item-picker .suggestion-item:hover { background:var(--sgi-bg); }
+  .dispatch-product-picker .suggestion-item .code,.dispatch-item-picker .suggestion-item .code { font-weight:600;color:var(--sgi-primary); }
+  .dispatch-product-picker .suggestion-item .name,.dispatch-item-picker .suggestion-item .name { font-size:12px;color:var(--sgi-text-muted); }
+  .dispatch-item-picker .suggestion-item .unit { display:inline-block;background:var(--sgi-primary);color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-top:4px; }
+</style>
+<script type="application/json" id="completedItemsData">[{% for item in completed_items %}{"id":{{ item.id }},"code":"{{ item.code|escapejs }}","name":"{{ item.name|escapejs }}","unit":"{{ item.unit|escapejs }}","quantity":"{{ item.total_completed|floatformat:2 }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script type="application/json" id="productsData">[{% for product in machines %}{"id":{{ product.id }},"code":"{{ product.code|escapejs }}","name":"{{ product.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
 <form method="POST" action="{% url 'sgierp:dispatch_create' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
 {% csrf_token %}
 <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;" class="dispatch-form-grid">
@@ -16,15 +32,23 @@
   <div>
     <div class="sgi-card" style="margin-bottom:16px;">
       <div class="sgi-card-header">
-        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div> Machine & Count</div>
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div> Product or Item Dispatch</div>
       </div>
       <div class="sgi-card-body">
+        <div class="dispatch-mode-toggle" role="group" aria-label="Dispatch type">
+          <button type="button" class="{% if form_data.dispatch_mode == 'single_item' %}{% else %}active{% endif %}" id="productModeButton" aria-pressed="{% if form_data.dispatch_mode == 'single_item' %}false{% else %}true{% endif %}">Product</button>
+          <button type="button" class="{% if form_data.dispatch_mode == 'single_item' %}active{% endif %}" id="singleItemModeButton" aria-pressed="{% if form_data.dispatch_mode == 'single_item' %}true{% else %}false{% endif %}">Single Item</button>
+          <input type="hidden" id="dispatchMode" name="dispatch_mode" value="{{ form_data.dispatch_mode|default:'product' }}">
+        </div>
         <div class="form-grid">
-          <div class="sgi-form-group">
+          <div class="sgi-form-group" id="productDispatchFields">
             <label class="sgi-label" for="machineSelect">
-              <i class="bi bi-gear"></i> Machine <span class="required">*</span>
+              <i class="bi bi-gear"></i> Product (machine with BOM)
             </label>
-            <select class="sgi-select" id="machineSelect" name="machine_id" required>
+            <div class="dispatch-product-picker">
+            <div class="sgi-input-group"><span class="sgi-input-icon"><i class="bi bi-search"></i></span><input class="sgi-input" id="machineLookup" placeholder="Search product code or name..." autocomplete="off" value="{% if selected_machine %}{{ selected_machine.code }} — {{ selected_machine.name }}{% endif %}"></div>
+            <div class="autocomplete-suggestions" id="productSuggestions"></div>
+            <select class="sgi-select" id="machineSelect" name="machine_id" style="display:none;">
               <option value="">-- Select Machine --</option>
               {% for m in machines %}
               <option value="{{ m.id }}" {% if selected_machine and selected_machine.id == m.id %}selected{% endif %}>
@@ -32,21 +56,35 @@
               </option>
               {% endfor %}
             </select>
+            </div>
           </div>
-          <div class="sgi-form-group">
+          <div class="sgi-form-group" id="singleItemDispatchFields" style="display:none;">
+            <label class="sgi-label" for="dispatchItemLookup"><i class="bi bi-box-seam"></i> Single Item from Completed Stock</label>
+            <div class="dispatch-item-picker">
+              <div class="sgi-input-group"><span class="sgi-input-icon"><i class="bi bi-search"></i></span><input class="sgi-input" id="dispatchItemLookup" placeholder="Search item code or name..." autocomplete="off" value="{% if selected_item %}{{ selected_item.code }} — {{ selected_item.name }} ({{ selected_item.completed_quantity|floatformat:2 }} {{ selected_item.unit }} @ Completed){% endif %}"></div>
+              <input type="hidden" id="dispatchItemId" name="item_id" value="{% if selected_item %}{{ selected_item.id }}{% endif %}">
+              <div class="autocomplete-suggestions" id="dispatchItemSuggestions"></div>
+            </div>
+          </div>
+          <div class="sgi-form-group" id="machineCountField">
             <label class="sgi-label" for="machineCount">
-              <i class="bi bi-123"></i> No. of Machines <span class="required">*</span>
+                <i class="bi bi-123"></i> No. of Machines
             </label>
             <div class="sgi-input-group">
               <span class="sgi-input-icon"><i class="bi bi-hash"></i></span>
               <input type="number" class="sgi-input" id="machineCount" name="machine_count"
-                value="{{ machine_count|default:1 }}" min="1" step="1" required>
+                value="{{ machine_count|default:1 }}" min="1" step="1">
             </div>
           </div>
         </div>
       </div>
     </div>
+    <div class="sgi-form-group" id="itemQuantityField" style="display:none;margin:12px 0;max-width:260px;">
+      <label class="sgi-label" for="itemQuantity">Single item quantity</label>
+      <input class="sgi-input" type="number" id="itemQuantity" name="item_quantity" min="0.01" step="0.01" value="{{ form_data.item_quantity|default:'' }}" placeholder="Required for single item dispatch">
+    </div>
 
+    <div id="productBomPreview">
     <!-- BOM preview -->
     {% if selected_machine and bom_preview %}
     <div class="sgi-card" style="margin-bottom:16px;">
@@ -95,6 +133,7 @@
       This machine has no BOM components defined. <a href="{% url 'sgierp:machine_edit' selected_machine.id %}">Edit Machine</a>
     </div>
     {% endif %}
+    </div>
 
     <!-- Dispatch details -->
     <div class="sgi-card">
@@ -183,4 +222,100 @@
 
 </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const lookup = document.getElementById('dispatchItemLookup');
+  const hidden = document.getElementById('dispatchItemId');
+  let items = [];
+  try { items = JSON.parse(document.getElementById('completedItemsData')?.textContent || '[]'); } catch (e) {}
+  const suggestions = document.getElementById('dispatchItemSuggestions');
+  const productLookup = document.getElementById('machineLookup');
+  const productSuggestions = document.getElementById('productSuggestions');
+  const productSelect = document.getElementById('machineSelect');
+  let products = [];
+  try { products = JSON.parse(document.getElementById('productsData')?.textContent || '[]'); } catch (e) {}
+  productLookup?.addEventListener('input', function () {
+    const query = this.value.trim().toLowerCase();
+    productSelect.value = '';
+    hidden.value = '';
+    productSuggestions.replaceChildren();
+    products.filter(product => product.code.toLowerCase().includes(query) || product.name.toLowerCase().includes(query))
+      .slice(0, 50).forEach(product => {
+        const option = document.createElement('div');
+        option.className = 'suggestion-item';
+        const code = document.createElement('div'); code.className = 'code'; code.textContent = product.code;
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = product.name;
+        option.append(code, name);
+        option.addEventListener('click', () => {
+          productLookup.value = `${product.code} — ${product.name}`;
+          productSelect.value = product.id;
+          productSuggestions.classList.remove('show');
+          productSelect.dispatchEvent(new Event('change'));
+        });
+        productSuggestions.appendChild(option);
+      });
+    productSuggestions.classList.toggle('show', productSuggestions.childElementCount > 0);
+  });
+  productLookup?.addEventListener('focus', function () {
+    if (!productSelect.value) this.dispatchEvent(new Event('input'));
+  });
+  lookup?.addEventListener('input', function () {
+    const query = this.value.trim().toLowerCase();
+    hidden.value = '';
+    suggestions.replaceChildren();
+    items.filter(item => item.code.toLowerCase().includes(query) || item.name.toLowerCase().includes(query))
+      .slice(0, 50).forEach(item => {
+        const option = document.createElement('div');
+        option.className = 'suggestion-item';
+        const code = document.createElement('div'); code.className = 'code'; code.textContent = item.code;
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = item.name;
+        const stock = document.createElement('div'); stock.className = 'unit'; stock.textContent = `${item.quantity} ${item.unit} @ Completed`;
+        option.append(code, name, stock);
+        option.addEventListener('click', () => {
+          lookup.value = `${item.code} — ${item.name} (${item.quantity} ${item.unit} @ Completed)`;
+          hidden.value = item.id;
+          suggestions.classList.remove('show');
+          productSelect.value = ''; productLookup.value = '';
+          productSuggestions.classList.remove('show');
+        });
+        suggestions.appendChild(option);
+      });
+    suggestions.classList.toggle('show', suggestions.childElementCount > 0);
+  });
+  lookup?.addEventListener('focus', function () {
+    if (!hidden.value) this.dispatchEvent(new Event('input'));
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.dispatch-item-picker')) suggestions?.classList.remove('show');
+    if (!event.target.closest('.dispatch-product-picker')) productSuggestions?.classList.remove('show');
+  });
+  const modeInput = document.getElementById('dispatchMode');
+  const productButton = document.getElementById('productModeButton');
+  const itemButton = document.getElementById('singleItemModeButton');
+  const productBomPreview = document.getElementById('productBomPreview');
+  const setMode = mode => {
+    const isSingleItem = mode === 'single_item';
+    modeInput.value = mode;
+    productButton.classList.toggle('active', !isSingleItem);
+    itemButton.classList.toggle('active', isSingleItem);
+    productButton.setAttribute('aria-pressed', String(!isSingleItem));
+    itemButton.setAttribute('aria-pressed', String(isSingleItem));
+    document.getElementById('productDispatchFields').style.display = isSingleItem ? 'none' : '';
+    document.getElementById('machineCountField').style.display = isSingleItem ? 'none' : '';
+    document.getElementById('singleItemDispatchFields').style.display = isSingleItem ? '' : 'none';
+    document.getElementById('itemQuantityField').style.display = isSingleItem ? '' : 'none';
+    if (productBomPreview) productBomPreview.style.display = isSingleItem ? 'none' : '';
+    if (isSingleItem) { productSelect.value = ''; productLookup.value = ''; productSuggestions.classList.remove('show'); }
+    else { hidden.value = ''; lookup.value = ''; suggestions.classList.remove('show'); }
+    suggestions.classList.remove('show');
+  };
+  productButton.addEventListener('click', () => setMode('product'));
+  itemButton.addEventListener('click', () => setMode('single_item'));
+  setMode(modeInput.value || 'product');
+});
+</script>
 {% endblock %}

@@ -2,7 +2,7 @@
 {% block title %}{{ page_title }}{% endblock %}
 {% block page_title %}{{ page_title }}{% endblock %}
 {% block breadcrumb %}
-<a href="{% url 'sgierp:machine_list' %}" class="breadcrumb-parent">Machines</a>
+<a href="{% url 'sgierp:machine_list' %}" class="breadcrumb-parent">Products</a>
 <span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
 <span class="page-title">{{ page_title }}</span>
 {% endblock %}
@@ -21,6 +21,33 @@
   .bom-suggestion:hover { background: var(--sgi-bg); }
   .bom-suggestion-code { color: var(--sgi-primary); font-weight: 600; }
   .bom-suggestion-name { color: var(--sgi-text-muted); font-size: 12px; }
+  .machine-edit-layout { display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;align-items:start; }
+  .machine-edit-layout > div { min-width:0; }
+  @media (min-width: 769px) { .machine-edit-layout > div:last-child { position:sticky;top:16px;align-self:start;z-index:20; } }
+  .machine-edit-bom-table { table-layout:fixed; }
+  .machine-edit-bom-table th:nth-child(1),.machine-edit-bom-table td:nth-child(1) { width:36px; }
+  .machine-edit-bom-table th:nth-child(3),.machine-edit-bom-table td:nth-child(3) { width:120px; }
+  .machine-edit-bom-table th:nth-child(4),.machine-edit-bom-table td:nth-child(4) { width:40px; }
+  .machine-edit-bom-table .bom-autocomplete { min-width:0; }
+  .machine-edit-bom-table .bom-item-select { min-width:0;flex:1 1 0;width:auto!important; }
+  @media (max-width: 768px) {
+    .machine-edit-layout { grid-template-columns:minmax(0,1fr);gap:14px; }
+    .machine-edit-layout .sgi-card-header { align-items:flex-start; }
+    .machine-edit-layout .sgi-card-header .sgi-card-title { display:flex!important;font-size:15px; }
+    .machine-edit-card-actions { width:100%; }
+    .machine-edit-card-actions .btn-sgi { width:auto!important;flex:1 1 130px;white-space:normal; }
+    .machine-edit-bom-wrap { width:100%;overflow-x:hidden; }
+    .machine-edit-bom-table th,.machine-edit-bom-table td { padding:7px 4px!important;font-size:12px; }
+    .machine-edit-bom-table th:nth-child(1),.machine-edit-bom-table td:nth-child(1) { width:28px; }
+    .machine-edit-bom-table th:nth-child(3),.machine-edit-bom-table td:nth-child(3) { width:72px; }
+    .machine-edit-bom-table th:nth-child(4),.machine-edit-bom-table td:nth-child(4) { width:34px; }
+    .machine-edit-bom-table .bom-item-select { padding:7px 5px; }
+    .machine-edit-bom-table .bom-qty-input { box-sizing:border-box;width:100%!important;min-width:0; }
+    .machine-edit-bom-table .bom-selected-image { width:30px!important;height:30px!important; }
+    #addBomRow,#openBulkImportBom { width:auto!important;flex:1 1 140px; }
+    #bomPagination .pagination-container { flex-direction:column;align-items:stretch; }
+    #bomPagination .pagination-controls { justify-content:space-between;flex-wrap:wrap; }
+  }
 </style>
 <script type="application/json" id="bomItemsData">
 [{% for item in items %}{"id":{{ item.id }},"code":"{{ item.code|escapejs }}","name":"{{ item.name|escapejs }}","image":"{% if item.image %}{{ item.image.url|escapejs }}{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}]
@@ -35,23 +62,23 @@
 
 <form id="machineForm" method="POST" enctype="multipart/form-data">
 {% csrf_token %}
-<div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start;">
+<div class="machine-edit-layout">
 
   <div>
     <div class="sgi-card" style="margin-bottom:16px;">
-      <div class="sgi-card-header">
-        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear"></i></div> Machine Details</div>
+      <div class="sgi-card-header machine-edit-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear"></i></div> Product Details</div>
       </div>
       <div class="sgi-card-body">
         <div class="form-grid">
           <div class="sgi-form-group">
-            <label class="sgi-label" for="code">Machine Code <span class="required">*</span></label>
+            <label class="sgi-label" for="code">Product Code <span class="required">*</span></label>
             <input type="text" class="sgi-input" id="code" name="code"
               value="{% if form_data.code %}{{ form_data.code }}{% elif machine %}{{ machine.code }}{% endif %}"
               placeholder="Machine Code" required style="text-transform:uppercase;">
           </div>
           <div class="sgi-form-group">
-            <label class="sgi-label" for="name">Machine Name <span class="required">*</span></label>
+            <label class="sgi-label" for="name">Product Name <span class="required">*</span></label>
             <input type="text" class="sgi-input" id="name" name="name"
               value="{% if form_data.name %}{{ form_data.name }}{% elif machine %}{{ machine.name }}{% endif %}"
               placeholder="Descriptive name" required>
@@ -75,16 +102,16 @@
           <label class="sgi-check-label">
             <input type="checkbox" name="is_active"
               {% if machine %}{% if machine.is_active %}checked{% endif %}{% else %}checked{% endif %}>
-            Machine is Active
+            Product is Active
           </label>
         </div>
       </div>
     </div>
 
     <div class="sgi-card">
-      <div class="sgi-card-header">
+      <div class="sgi-card-header machine-edit-card-header">
         <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-list-ul"></i></div> Bill of Materials</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <div class="machine-edit-card-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
           <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" id="addBomRow">
             <i class="bi bi-plus-lg"></i> Add Component
           </button>
@@ -93,8 +120,8 @@
           </button>
         </div>
       </div>
-      <div class="sgi-card-body" style="padding:0;">
-        <table class="bom-table" style="width:100%;">
+      <div class="sgi-card-body machine-edit-bom-wrap" style="padding:0;">
+        <table class="bom-table machine-edit-bom-table" style="width:100%;">
           <thead><tr><th style="width:36px;">#</th><th>Item (type to search)</th><th style="width:120px;">Qty / Machine</th><th style="width:40px;"></th></tr></thead>
           <tbody id="bomTableBody"></tbody>
         </table>
@@ -131,11 +158,11 @@
     <div class="sgi-card">
       <div class="sgi-card-body">
         <div style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:16px;line-height:1.6;">
-          Define the components (items) needed to assemble one unit of this machine.
+          Define the components (items) needed to assemble one unit of this product.
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button type="submit" class="btn-sgi btn-sgi-primary" style="justify-content:center;">
-            <i class="bi bi-check-lg"></i> {% if machine %}Save Changes{% else %}Create Machine{% endif %}
+            <i class="bi bi-check-lg"></i> {% if machine %}Save Changes{% else %}Create Product{% endif %}
           </button>
           <a href="{% if machine %}{% url 'sgierp:machine_detail' machine.id %}{% else %}{% url 'sgierp:machine_list' %}{% endif %}"
             class="btn-sgi btn-sgi-outline" style="justify-content:center;">Cancel</a>
@@ -147,3 +174,6 @@
 </div>
 </form>
 {% endblock %}
+
+
+

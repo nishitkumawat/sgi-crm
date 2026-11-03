@@ -214,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = new URL(window.location.href);
         const machineId = document.getElementById('machineSelect')?.value;
         if (machineId) {
+          url.searchParams.delete('item');
           url.searchParams.set('machine', machineId);
           url.searchParams.set('count', this.value);
           window.location.href = url.toString();
@@ -226,6 +227,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (machineSelect) {
     machineSelect.addEventListener('change', function() {
       const url = new URL(window.location.href);
+      url.searchParams.delete('item');
       url.searchParams.set('machine', this.value);
       url.searchParams.set('count', document.getElementById('machineCount')?.value || 1);
       window.location.href = url.toString();
@@ -552,8 +554,8 @@ function initBomEditor() {
 
   addBomBtn.addEventListener('click', function() {
     captureVisibleBomEdits();
-    bomRows.push({ item_id: '', item_code: '', item_name: '', quantity: 1 });
-    bomCurrentPage = bomPageSize === Infinity ? 1 : Math.ceil(bomRows.length / bomPageSize);
+    bomRows.unshift({ item_id: '', item_code: '', item_name: '', quantity: 1 });
+    bomCurrentPage = 1;
     renderRows();
     syncBomData();
   });
@@ -587,16 +589,16 @@ function initBomEditor() {
       const existingIds = new Set(bomRows.map(row => String(row.item_id)).filter(Boolean));
       const matches = items.filter(item => item.code.startsWith(prefix)).map(item => itemsById.get(String(item.id)));
       const newItems = matches.filter(item => !existingIds.has(String(item.id)));
-      newItems.forEach(item => bomRows.push({
+      bomRows.unshift(...newItems.map(item => ({
         item_id: item.id,
         item_code: item.code,
         item_name: item.name,
         item_image: item.image || '',
         item_label: item.label,
         quantity,
-      }));
+      })));
       if (newItems.length) {
-        bomCurrentPage = bomPageSize === Infinity ? 1 : Math.ceil(bomRows.length / bomPageSize);
+        bomCurrentPage = 1;
       }
 
       bulkStatus.textContent = matches.length === 0
@@ -651,3 +653,4 @@ function exportTableToExcel(tableId, filename) {
   downloadLink.click();
   document.body.removeChild(downloadLink);
 }
+

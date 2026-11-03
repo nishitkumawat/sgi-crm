@@ -76,7 +76,7 @@
 
       <a href="{% url 'sgierp:machine_list' %}" class="sidebar-link {% if 'machine' in request.resolver_match.url_name %}active{% endif %}">
         <i class="bi bi-gear-wide-connected sgi-icon"></i>
-        <span>Machines</span>
+        <span>Products</span>
       </a>
       <a href="{% url 'sgierp:dispatch_list' %}" class="sidebar-link {% if 'dispatch' in request.resolver_match.url_name %}active{% endif %}">
         <i class="bi bi-truck sgi-icon"></i>
@@ -217,3 +217,4 @@
 {% block extra_js %}{% endblock %}
 </body>
 </html>
+
