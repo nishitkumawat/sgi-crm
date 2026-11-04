@@ -288,6 +288,15 @@ def machine_detail(request, machine_id):
         machine.bom_items.select_related('item').all(),
         key=lambda entry: _natural_code_key(entry.item.code),
     )
+    bom_search = request.GET.get('q', '').strip()
+    if bom_search:
+        normalized_search = bom_search.casefold()
+        bom_items_qs = [
+            entry for entry in bom_items_qs
+            if normalized_search in str(entry.item_id).casefold()
+            or normalized_search in entry.item.name.casefold()
+            or normalized_search in entry.item.code.casefold()
+        ]
     per_page = request.GET.get('per_page', _get_default_per_page(request))
     if per_page == 'all':
         bom_items = bom_items_qs
@@ -335,6 +344,7 @@ def machine_detail(request, machine_id):
         'start_index': start_index,
         'end_index': end_index,
         'total_count': total_count,
+        'bom_search': bom_search,
     }
     return render(request, 'sgierp/machines/detail.html', context)
 

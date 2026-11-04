@@ -121,6 +121,17 @@
         </div>
       </div>
       <div class="sgi-card-body machine-edit-bom-wrap" style="padding:0;">
+        <div style="padding:12px;">
+          <div style="display:flex;gap:8px;max-width:520px;">
+            <div class="sgi-input-group" style="flex:1;min-width:0;">
+              <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+              <input type="search" class="sgi-input" id="bomSearch" placeholder="Search BOM by item ID, code or name..." autocomplete="off">
+            </div>
+            <button type="button" class="btn-sgi btn-sgi-primary" id="bomSearchButton">
+              <i class="bi bi-search"></i> Search
+            </button>
+          </div>
+        </div>
         <table class="bom-table machine-edit-bom-table" style="width:100%;">
           <thead><tr><th style="width:36px;">#</th><th>Item (type to search)</th><th style="width:120px;">Qty / Machine</th><th style="width:40px;"></th></tr></thead>
           <tbody id="bomTableBody"></tbody>

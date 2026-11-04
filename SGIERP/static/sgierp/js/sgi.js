@@ -244,6 +244,8 @@ function initBomEditor() {
   const bomDataInput = document.getElementById('bomData');
   const bomItemsData = document.getElementById('bomItemsData');
   const bomPagination = document.getElementById('bomPagination');
+  const bomSearchInput = document.getElementById('bomSearch');
+  const bomSearchButton = document.getElementById('bomSearchButton');
   const openBulkImportBtn = document.getElementById('openBulkImportBom');
   const bulkImportBtn = document.getElementById('bulkImportBom');
   const bulkImportDialog = document.getElementById('bulkImportDialog');
@@ -256,6 +258,16 @@ function initBomEditor() {
   const machineForm = document.getElementById('machineForm');
 
   if (!bomContainer || !addBomBtn || !bomDataInput) return;
+
+  // Keep Enter from triggering the form's implicit submit. Saving is done
+  // through the explicit Save Changes / Create Product button.
+  machineForm?.addEventListener('keydown', function(event) {
+    if (event.key !== 'Enter' || event.target.matches('textarea')) return;
+    event.preventDefault();
+    if (event.target === bomSearchInput) {
+      bomSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
 
   function setMachineBusy(message, isBusy) {
     if (!loadingOverlay) return;
@@ -272,6 +284,17 @@ function initBomEditor() {
 
   let bomRows = [];
   try { bomRows = JSON.parse(bomDataInput.value || '[]'); } catch(e) {}
+  let bomSearchQuery = '';
+
+  function getFilteredBomRows() {
+    return bomRows.map((row, index) => ({ row, index })).filter(({ row }) => {
+      if (!bomSearchQuery) return true;
+      const item = itemsById.get(String(row.item_id));
+      const searchable = [row.item_id, row.item_code, row.item_name, row.item_label, item?.code, item?.name]
+        .filter(Boolean).join(' ').toLowerCase();
+      return searchable.includes(bomSearchQuery);
+    });
+  }
 
   function captureVisibleBomEdits() {
     bomContainer.querySelectorAll('.bom-item-select').forEach(input => {
@@ -310,9 +333,19 @@ function initBomEditor() {
   let bomPageSize = defaultPageSize === 'all' ? Infinity : (parseInt(defaultPageSize, 10) || 20);
   let bomCurrentPage = 1;
 
+  bomSearchInput?.addEventListener('input', function() {
+    captureVisibleBomEdits();
+    bomSearchQuery = this.value.trim().toLowerCase();
+    bomCurrentPage = 1;
+    renderRows();
+  });
+  bomSearchButton?.addEventListener('click', function() {
+    bomSearchInput?.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
   function updateBomPagination() {
     if (!bomPagination) return;
-    const total = bomRows.length;
+    const total = getFilteredBomRows().length;
     if (!total) {
       bomPagination.innerHTML = '';
       return;
@@ -397,10 +430,14 @@ function initBomEditor() {
       bomContainer.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:20px;text-align:center;">No components added yet. Click "Add Component".</td></tr>';
       return;
     }
+    const visibleRows = getFilteredBomRows();
+    if (visibleRows.length === 0) {
+      bomContainer.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:20px;text-align:center;">No BOM components match your search.</td></tr>';
+      return;
+    }
     const pageStart = bomPageSize === Infinity ? 0 : (bomCurrentPage - 1) * bomPageSize;
-    const pageEnd = bomPageSize === Infinity ? bomRows.length : Math.min(pageStart + bomPageSize, bomRows.length);
-    bomRows.slice(pageStart, pageEnd).forEach((row, pageIdx) => {
-      const idx = pageStart + pageIdx;
+    const pageEnd = bomPageSize === Infinity ? visibleRows.length : Math.min(pageStart + bomPageSize, visibleRows.length);
+    visibleRows.slice(pageStart, pageEnd).forEach(({ row, index: idx }) => {
       const tr = document.createElement('tr');
       const selected = row.item_label || (row.item_code ? `${row.item_code} — ${row.item_name || ''}` : '');
       tr.innerHTML = `
@@ -554,6 +591,8 @@ function initBomEditor() {
 
   addBomBtn.addEventListener('click', function() {
     captureVisibleBomEdits();
+    if (bomSearchInput) bomSearchInput.value = '';
+    bomSearchQuery = '';
     bomRows.unshift({ item_id: '', item_code: '', item_name: '', quantity: 1 });
     bomCurrentPage = 1;
     renderRows();
@@ -589,6 +628,10 @@ function initBomEditor() {
       const existingIds = new Set(bomRows.map(row => String(row.item_id)).filter(Boolean));
       const matches = items.filter(item => item.code.startsWith(prefix)).map(item => itemsById.get(String(item.id)));
       const newItems = matches.filter(item => !existingIds.has(String(item.id)));
+      if (newItems.length) {
+        if (bomSearchInput) bomSearchInput.value = '';
+        bomSearchQuery = '';
+      }
       bomRows.unshift(...newItems.map(item => ({
         item_id: item.id,
         item_code: item.code,

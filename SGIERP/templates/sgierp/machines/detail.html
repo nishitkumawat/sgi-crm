@@ -16,6 +16,12 @@
   .machine-detail-actions form { margin:0; }
   .machine-detail-bom-header .sgi-card-title,.machine-dispatch-header .sgi-card-title { display:flex!important; }
   .machine-bom-view-table { width:100%;table-layout:fixed; }
+  .machine-bom-view-table th:nth-child(1),.machine-bom-view-table td:nth-child(1) { width:4%; }
+  .machine-bom-view-table th:nth-child(2),.machine-bom-view-table td:nth-child(2) { width:7%; }
+  .machine-bom-view-table th:nth-child(3),.machine-bom-view-table td:nth-child(3) { width:36%; }
+  .machine-bom-view-table th:nth-child(4),.machine-bom-view-table td:nth-child(4) { width:12%; }
+  .machine-bom-view-table th:nth-child(5),.machine-bom-view-table td:nth-child(5) { width:22%; }
+  .machine-bom-view-table th:nth-child(6),.machine-bom-view-table td:nth-child(6) { width:19%; }
   .machine-bom-view-table td { overflow-wrap:anywhere; }
   .machine-dispatch-table { width:100%; }
   @media (max-width: 768px) {
@@ -96,6 +102,17 @@
       <i class="bi bi-download"></i> Download Excel
     </a>
   </div>
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      {% if per_page %}<input type="hidden" name="per_page" value="{{ per_page }}">{% endif %}
+      <div class="sgi-input-group" style="flex:1;min-width:220px;max-width:420px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="search" class="sgi-input" name="q" value="{{ bom_search }}" placeholder="Search BOM by item ID, code or name..." style="border:none;">
+      </div>
+      <button type="submit" class="btn-sgi btn-sgi-primary btn-sgi-sm"><i class="bi bi-search"></i> Search</button>
+      {% if bom_search %}<a href="?{% if per_page %}per_page={{ per_page }}{% endif %}" class="btn-sgi btn-sgi-outline btn-sgi-sm">Clear</a>{% endif %}
+    </form>
+  </div>
   <div class="sgi-table-wrap machine-bom-wrap">
     {% if enriched_bom %}
     <table class="bom-table machine-bom-view-table" style="width:100%;">
@@ -146,8 +163,13 @@
     </table>
     {% else %}
     <div class="sgi-empty" style="padding:30px;">
+      {% if bom_search %}
+      <h4>No matching components</h4>
+      <p>No BOM items match “{{ bom_search }}”.</p>
+      {% else %}
       <h4>No BOM defined</h4>
-      <p>Edit this machine to add components.</p>
+      <p>Edit this product to add components.</p>
+      {% endif %}
     </div>
     {% endif %}
   </div>
