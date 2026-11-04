@@ -54,7 +54,7 @@
 <div class="sgi-card" style="margin-bottom:20px;">
   <div class="sgi-card-body machine-detail-header-body">
     {% if machine.image %}
-    <img src="{{ machine.image.url }}" alt="{{ machine.name }}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--sgi-border);flex-shrink:0;">
+    <img src="{{ machine.image.url }}" class="item-image-thumb" alt="{{ machine.name }}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;border:1px solid var(--sgi-border);flex-shrink:0;cursor:zoom-in;">
     {% else %}
     <div class="machine-image-placeholder" style="width:80px;height:80px;border-radius:10px;background:var(--sgi-primary-bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--sgi-primary);flex-shrink:0;">⚙️</div>
     {% endif %}
@@ -132,8 +132,8 @@
           <td data-label="#">{{ start_index|add:forloop.counter0 }}</td>
           <td data-label="Image" style="width:64px;">
             {% if entry.item.image %}
-            <img src="{{ entry.item.image.url }}" alt="{{ entry.item.name }}" loading="lazy" decoding="async"
-              style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--sgi-border);">
+            <img src="{{ entry.item.image.url }}" class="item-image-thumb" alt="{{ entry.item.name }}" loading="lazy" decoding="async"
+              style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--sgi-border);cursor:zoom-in;">
             {% else %}
             <span aria-label="No image" style="display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;border-radius:6px;background:var(--sgi-primary-bg);color:var(--sgi-primary);"><i class="bi bi-box-seam"></i></span>
             {% endif %}

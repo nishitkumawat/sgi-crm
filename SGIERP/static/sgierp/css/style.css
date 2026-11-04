@@ -744,6 +744,11 @@ body {
 .bom-table tr:last-child td { border-bottom: none; }
 .bom-table .sufficient { color: var(--sgi-success); font-weight: 600; }
 .bom-table .insufficient { color: var(--sgi-danger); font-weight: 600; }
+.suggestion-item.keyboard-active,.bom-suggestion.keyboard-active {
+  background-color: var(--sgi-primary-bg, #e8f0fe) !important;
+  outline: 2px solid var(--sgi-primary);
+  outline-offset: -2px;
+}
 .bom-row-remove {
   background: none; border: none; cursor: pointer;
   color: var(--sgi-danger); font-size: 15px; padding: 4px;

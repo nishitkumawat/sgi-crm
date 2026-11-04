@@ -18,6 +18,46 @@ document.addEventListener('DOMContentLoaded', function () {
   // Hide loader on page load
   hidePageLoader();
 
+  // Shared keyboard behavior for lookup/autocomplete fields across the site.
+  document.addEventListener('keydown', function(event) {
+    const input = event.target instanceof Element ? event.target.closest(
+      '.bom-autocomplete input, .autocomplete-wrapper input, .dispatch-product-picker input, .dispatch-item-picker input'
+    ) : null;
+    if (!input) return;
+
+    const wrapper = input.closest('.bom-autocomplete, .autocomplete-wrapper, .dispatch-product-picker, .dispatch-item-picker');
+    const suggestions = wrapper?.querySelector('.bom-suggestions, .autocomplete-suggestions');
+    const options = [...(suggestions?.querySelectorAll('.bom-suggestion, .suggestion-item') || [])];
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!suggestions?.classList.contains('show') || !options.length) return;
+      const active = options.find(option => option.classList.contains('keyboard-active')) || options[0];
+      if (active.classList.contains('bom-suggestion')) {
+        active.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      } else {
+        active.click();
+      }
+      return;
+    }
+
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    if (!suggestions?.classList.contains('show') || !options.length) return;
+    event.preventDefault();
+    const currentIndex = options.findIndex(option => option.classList.contains('keyboard-active'));
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    const nextIndex = currentIndex < 0
+      ? (step > 0 ? 0 : options.length - 1)
+      : (currentIndex + step + options.length) % options.length;
+    options.forEach((option, index) => {
+      const active = index === nextIndex;
+      option.classList.toggle('keyboard-active', active);
+      option.setAttribute('aria-selected', String(active));
+    });
+    options[nextIndex].scrollIntoView?.({ block: 'nearest' });
+  }, true);
+
   const imagePreview = document.getElementById('imagePreview');
   const previewImage = document.getElementById('imagePreviewContent');
   let imageZoom = 1;
@@ -445,8 +485,8 @@ function initBomEditor() {
         <td style="padding:8px 12px;">
           <div class="bom-autocomplete">
             <div style="display:flex;align-items:center;gap:8px;">
-              <img class="bom-selected-image" alt="" loading="lazy" decoding="async"
-                style="width:42px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--sgi-border);${row.item_image ? '' : 'display:none;'}">
+          <img class="bom-selected-image item-image-thumb" alt="" loading="lazy" decoding="async"
+            style="width:42px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--sgi-border);cursor:zoom-in;${row.item_image ? '' : 'display:none;'}">
               <input type="text" class="sgi-input bom-item-select" data-idx="${idx}"
                 value="${selected.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"
                 placeholder="Search item code or name" autocomplete="off" style="width:100%;">
@@ -465,6 +505,7 @@ function initBomEditor() {
         </td>
       `;
       const selectedImage = tr.querySelector('.bom-selected-image');
+      selectedImage.alt = row.item_name || row.item_label || '';
       if (row.item_image) selectedImage.src = row.item_image;
       bomContainer.appendChild(tr);
     });
@@ -542,6 +583,7 @@ function initBomEditor() {
         bomRows[idx].item_name = item.name;
         bomRows[idx].item_image = item.image || '';
         const selectedImage = input.parentElement.querySelector('.bom-selected-image');
+        selectedImage.alt = item.name;
         if (item.image) {
           selectedImage.src = item.image;
           selectedImage.style.display = '';
@@ -563,10 +605,19 @@ function initBomEditor() {
     bomContainer.querySelectorAll('.bom-row-remove').forEach(btn => {
       btn.addEventListener('click', function() {
         const idx = +this.dataset.idx;
+        const focusIndex = [...bomContainer.querySelectorAll('.bom-row-remove')].indexOf(this);
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
         captureVisibleBomEdits();
         bomRows.splice(idx, 1);
         renderRows();
         syncBomData();
+        window.requestAnimationFrame(() => {
+          const removeButtons = bomContainer.querySelectorAll('.bom-row-remove');
+          const nextFocus = removeButtons[Math.min(focusIndex, removeButtons.length - 1)] || addBomBtn;
+          nextFocus.focus({ preventScroll: true });
+          window.scrollTo(scrollX, scrollY);
+        });
       });
     });
     };

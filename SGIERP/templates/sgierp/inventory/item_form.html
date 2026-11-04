@@ -58,7 +58,7 @@
       <label class="sgi-label" for="item_image">Item Image</label>
       {% if item and item.image %}
       <div style="margin-bottom:8px;">
-        <img src="{{ item.image.url }}" style="height:70px;border-radius:6px;border:1px solid var(--sgi-border);">
+        <img src="{{ item.image.url }}" class="item-image-thumb" alt="{{ item.name }}" style="height:70px;border-radius:6px;border:1px solid var(--sgi-border);cursor:zoom-in;">
       </div>
       {% endif %}
       <input type="file" class="sgi-input" id="item_image" name="image" accept="image/*" style="padding:6px;">

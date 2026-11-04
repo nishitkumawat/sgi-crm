@@ -92,7 +92,7 @@
           <label class="sgi-label" for="machine_image">Machine Image</label>
           {% if machine and machine.image %}
           <div style="margin-bottom:8px;">
-            <img src="{{ machine.image.url }}" style="height:70px;border-radius:6px;border:1px solid var(--sgi-border);">
+            <img src="{{ machine.image.url }}" class="item-image-thumb" alt="{{ machine.name }}" style="height:70px;border-radius:6px;border:1px solid var(--sgi-border);cursor:zoom-in;">
           </div>
           {% endif %}
           <input type="file" class="sgi-input" id="machine_image" name="image" accept="image/*" style="padding:6px;">
