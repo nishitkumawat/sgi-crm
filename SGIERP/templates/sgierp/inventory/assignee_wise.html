@@ -41,7 +41,7 @@
             {% for a_data in assignee_data %}
             <div class="assignee-section" data-assignee-name="{{ a_data.assignee.name|lower }}">
               <div class="assignee-header">
-                <h3>{{ a_data.assignee.name }}</h3>
+                <h3><a href="{% url 'sgierp:assignee_history' a_data.assignee.id %}" style="color:inherit;text-decoration:none;">{{ a_data.assignee.name }} <i class="bi bi-clock-history" style="font-size:13px;"></i></a></h3>
                 {% if a_data.assignee.department %}
                 <span class="badge-dept">{{ a_data.assignee.department }}</span>
                 {% endif %}
@@ -87,7 +87,7 @@
           {% for a_data in assignee_data %}
           <div class="sgi-tab-pane" id="tab-{{ a_data.assignee.id }}">
             <div class="assignee-header">
-              <h3>{{ a_data.assignee.name }}</h3>
+              <h3><a href="{% url 'sgierp:assignee_history' a_data.assignee.id %}" style="color:inherit;text-decoration:none;">{{ a_data.assignee.name }} <i class="bi bi-clock-history" style="font-size:13px;"></i></a></h3>
               {% if a_data.assignee.department %}
               <span class="badge-dept">{{ a_data.assignee.department }}</span>
               {% endif %}

@@ -104,6 +104,9 @@
             </td>
             <td>
               <div style="display:flex;gap:8px;">
+                <a href="{% url 'sgierp:process_history' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View stock history">
+                  <i class="bi bi-clock-history"></i>
+                </a>
                 <a href="{% url 'sgierp:process_edit' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
                   <i class="bi bi-pencil"></i>
                 </a>
@@ -183,6 +186,9 @@
             </td>
             <td>
               <div style="display:flex;gap:8px;">
+                <a href="{% url 'sgierp:assignee_history' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View stock history">
+                  <i class="bi bi-clock-history"></i>
+                </a>
                 <a href="{% url 'sgierp:assignee_edit' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
                   <i class="bi bi-pencil"></i>
                 </a>

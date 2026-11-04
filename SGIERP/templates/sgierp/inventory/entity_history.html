@@ -1,0 +1,53 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% if entity_type == 'Process' %}{% url 'sgierp:process_wise_stock' %}{% else %}{% url 'sgierp:assignee_wise_stock' %}{% endif %}" class="breadcrumb-parent">Stock by {{ entity_type }}</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ entity_name }} History</span>
+{% endblock %}
+
+{% block content %}
+<div class="sgi-card">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-clock-history"></i></div>{{ entity_type }} History — {{ entity_name }}</div>
+  </div>
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <div class="sgi-input-group" style="flex:1;min-width:220px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="text" class="sgi-input" name="q" value="{{ search }}" placeholder="Search item or description..." style="border:none;">
+      </div>
+      <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-search"></i> Search</button>
+      {% if search %}<a href="?" class="btn-sgi btn-sgi-outline">Clear</a>{% endif %}
+    </form>
+  </div>
+  <div class="sgi-card-body">
+    <div class="sgi-table-wrap">
+      {% if history %}
+      <table class="sgi-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Item</th><th>From Process</th><th>To Process</th><th>Quantity</th><th>From Assignee</th><th>To Assignee</th><th>Description</th></tr></thead>
+        <tbody>
+          {% for entry in history %}
+          <tr>
+            <td>{{ entry.created_at|date:"d M Y, h:i A" }}</td>
+            <td>{{ entry.get_movement_type_display }}</td>
+            <td><strong>{{ entry.item_code_snapshot }}</strong><br>{{ entry.item_name_snapshot }}</td>
+            <td>{{ entry.from_process_name|default:"—" }}</td>
+            <td>{{ entry.to_process_name|default:"—" }}</td>
+            <td><strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.unit_snapshot }}</td>
+            <td>{{ entry.from_assignee_name|default:"—" }}</td>
+            <td>{{ entry.to_assignee_name|default:"—" }}</td>
+            <td>{{ entry.remarks|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="sgi-empty"><div class="sgi-empty-icon">📋</div><h4>No history found</h4><p>Movements mentioning this {{ entity_type|lower }} as From or To will appear here.</p></div>
+      {% endif %}
+    </div>
+    {% if total_count %}{% include 'sgierp/components/pagination.html' %}{% endif %}
+  </div>
+</div>
+{% endblock %}

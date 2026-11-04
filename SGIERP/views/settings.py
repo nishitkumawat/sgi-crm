@@ -4,9 +4,36 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
+from django.core.paginator import Paginator
 
 from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
 from SGIERP.models import Process, ERPUserProfile, Assignee, ERPConfig
+
+
+def _paginate_settings_rows(request, queryset, default_per_page):
+    per_page = request.GET.get('per_page', default_per_page)
+    if per_page == 'all':
+        rows = queryset
+        total_count = queryset.count()
+        page_obj = Paginator(queryset, max(total_count, 1)).get_page(1)
+        start_index = 1 if total_count else 0
+        end_index = total_count
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(queryset, per_page_int)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        rows = page_obj.object_list
+        total_count = paginator.count
+        start_index = (page_obj.number - 1) * per_page_int + 1 if total_count else 0
+        end_index = min(page_obj.number * per_page_int, total_count)
+    return {
+        'rows': rows,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
+    }
 
 
 @sgi_login_required
@@ -31,13 +58,25 @@ def settings_view(request):
         context = {'processes': processes, 'assignees': assignees}
     elif url_name == 'settings_processes':
         template = 'sgierp/settings/processes.html'
+        search = request.GET.get('q', '').strip()
+        if search:
+            processes = processes.filter(Q(name__icontains=search) | Q(description__icontains=search))
+        page_data = _paginate_settings_rows(request, processes, user.erp_profile.default_per_page)
         context = {
-            'processes': processes,
+            'processes': page_data['rows'], 'search': search,
+            **{key: value for key, value in page_data.items() if key != 'rows'},
         }
     elif url_name == 'settings_assignees':
         template = 'sgierp/settings/assignees.html'
+        search = request.GET.get('q', '').strip()
+        if search:
+            assignees = assignees.filter(
+                Q(name__icontains=search) | Q(department__icontains=search) | Q(phone__icontains=search)
+            )
+        page_data = _paginate_settings_rows(request, assignees, user.erp_profile.default_per_page)
         context = {
-            'assignees': assignees,
+            'assignees': page_data['rows'], 'search': search,
+            **{key: value for key, value in page_data.items() if key != 'rows'},
         }
     else:
         # Landing page

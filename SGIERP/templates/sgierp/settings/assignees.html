@@ -12,7 +12,7 @@
   <div class="sgi-card-header">
     <div class="sgi-card-title">
       <div class="card-icon"><i class="bi bi-person-badge"></i></div>
-      Assignees ({{ assignees|length }})
+      Assignees ({{ total_count }})
     </div>
     <div class="sgi-card-actions">
       <div class="sgi-card-actions-row">
@@ -24,6 +24,16 @@
         <i class="bi bi-plus-lg"></i> Add Assignee
       </a>
     </div>
+  </div>
+  <div class="filters-bar">
+    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <div class="sgi-input-group" style="flex:1;min-width:220px;">
+        <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+        <input type="text" class="sgi-input" name="q" value="{{ search }}" placeholder="Search assignee, department or phone..." style="border:none;">
+      </div>
+      <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-search"></i> Search</button>
+      {% if search %}<a href="{% url 'sgierp:settings_assignees' %}" class="btn-sgi btn-sgi-outline"><i class="bi bi-x"></i> Clear</a>{% endif %}
+    </form>
   </div>
   <div class="sgi-table-wrap">
     {% if assignees %}
@@ -64,6 +74,9 @@
           </td>
           <td>
             <div style="display:flex;gap:8px;">
+              <a href="{% url 'sgierp:assignee_history' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View stock history">
+                <i class="bi bi-clock-history"></i>
+              </a>
               <a href="{% url 'sgierp:assignee_edit' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
                 <i class="bi bi-pencil"></i>
               </a>
@@ -80,7 +93,7 @@
     <div class="sgi-empty" style="padding:30px;">
       <div class="sgi-empty-icon">👥</div>
       <h4>No assignees yet</h4>
-      <p>Add workers/staff who can be assigned stock.</p>
+      <p>{% if search %}No assignees match your search. <a href="{% url 'sgierp:settings_assignees' %}">Clear search</a>.{% else %}Add workers/staff who can be assigned stock.{% endif %}</p>
       <div style="margin-top:16px;">
         <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary">
           <i class="bi bi-plus-lg"></i> Add Assignee
@@ -89,5 +102,6 @@
     </div>
     {% endif %}
   </div>
+  {% if total_count %}{% include 'sgierp/components/pagination.html' %}{% endif %}
 </div>
 {% endblock %}

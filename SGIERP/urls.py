@@ -3,7 +3,7 @@ from django.urls import path
 from SGIERP.views import (
     login_view, logout_view, forgot_password_view, verify_otp_view, reset_password_view, signup_view,
     dashboard,
-    item_catalog, inventory_list, item_create, item_edit, item_detail, item_delete, add_stock, inventory_entry_delete, stock_move_view, completed_stock, rejected_stock, stock_history, item_groups, process_wise_stock, assignee_wise_stock,
+    item_catalog, inventory_list, item_create, item_edit, item_detail, item_delete, add_stock, inventory_entry_delete, stock_move_view, completed_stock, rejected_stock, stock_history, item_groups, process_wise_stock, assignee_wise_stock, process_history, assignee_history,
     machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete,
     dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete,
     challan_list, challan_create, challan_detail, challan_print,
@@ -42,6 +42,8 @@ urlpatterns = [
     path('inventory/groups/', item_groups, name='item_groups'),
     path('inventory/by-process/', process_wise_stock, name='process_wise_stock'),
     path('inventory/by-assignee/', assignee_wise_stock, name='assignee_wise_stock'),
+    path('inventory/by-process/<int:process_id>/history/', process_history, name='process_history'),
+    path('inventory/by-assignee/<int:assignee_id>/history/', assignee_history, name='assignee_history'),
     path('inventory/setup/', settings_view, name='inventory_setup'),
 
     # ---- Machines ----

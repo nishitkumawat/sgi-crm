@@ -795,6 +795,70 @@ def assignee_wise_stock(request):
     })
 
 
+def _render_entity_history(request, history_qs, entity_name, entity_type):
+    search = request.GET.get('q', '').strip()
+    per_page = request.GET.get('per_page', _get_default_per_page(request))
+    if search:
+        history_qs = history_qs.filter(
+            Q(item_code_snapshot__icontains=search) |
+            Q(item_name_snapshot__icontains=search) |
+            Q(remarks__icontains=search)
+        )
+    history_qs = history_qs.select_related(
+        'item', 'from_process', 'to_process', 'from_assignee', 'to_assignee', 'performed_by'
+    ).order_by('-created_at', '-id')
+
+    if per_page == 'all':
+        history = history_qs
+        page_obj = None
+        total_count = history_qs.count()
+        start_index = 1 if total_count else 0
+        end_index = total_count
+    else:
+        per_page_int = int(per_page)
+        paginator = Paginator(history_qs, per_page_int)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        history = page_obj.object_list
+        total_count = paginator.count
+        start_index = (page_obj.number - 1) * per_page_int + 1 if total_count else 0
+        end_index = min(page_obj.number * per_page_int, total_count)
+
+    return render(request, 'sgierp/inventory/entity_history.html', {
+        'history': history,
+        'entity_name': entity_name,
+        'entity_type': entity_type,
+        'search': search,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'start_index': start_index,
+        'end_index': end_index,
+        'total_count': total_count,
+        'page_title': f'{entity_type} History — {entity_name}',
+    })
+
+
+@sgi_login_required
+def process_history(request, process_id):
+    """Show stock history where a process appears as either source or destination."""
+    process = get_object_or_404(Process, id=process_id)
+    history_qs = StockHistory.objects.filter(
+        Q(from_process=process) | Q(to_process=process) |
+        Q(from_process_name__iexact=process.name) | Q(to_process_name__iexact=process.name)
+    )
+    return _render_entity_history(request, history_qs, process.name, 'Process')
+
+
+@sgi_login_required
+def assignee_history(request, assignee_id):
+    """Show stock history where an assignee appears as either source or destination."""
+    assignee = get_object_or_404(Assignee, id=assignee_id)
+    history_qs = StockHistory.objects.filter(
+        Q(from_assignee=assignee) | Q(to_assignee=assignee) |
+        Q(from_assignee_name__iexact=assignee.name) | Q(to_assignee_name__iexact=assignee.name)
+    )
+    return _render_entity_history(request, history_qs, assignee.name, 'Assignee')
+
+
 @sgi_login_required
 def completed_stock(request):
     """Show paginated stock totals in the Completed process."""

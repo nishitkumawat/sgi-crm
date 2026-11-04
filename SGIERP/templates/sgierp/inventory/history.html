@@ -59,6 +59,7 @@
             <th>From Assignee</th>
             <th>To Assignee</th>
             <th>Performed By</th>
+            <th>Description</th>
           </tr>
         </thead>
         <tbody>
@@ -120,6 +121,7 @@
               <span class="text-muted">—</span>
               {% endif %}
             </td>
+            <td style="max-width:280px;white-space:normal;">{{ entry.remarks|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>

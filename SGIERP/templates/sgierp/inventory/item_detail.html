@@ -134,7 +134,7 @@
           <th>To</th>
           <th>Quantity</th>
           <th>By</th>
-          <th>Remarks</th>
+          <th>Description</th>
         </tr>
       </thead>
       <tbody>
@@ -183,7 +183,7 @@
           </td>
           <td>
             {% if h.remarks %}
-            <small style="color:var(--sgi-text-muted);">{{ h.remarks|truncatewords:10 }}</small>
+            <small style="color:var(--sgi-text-muted);">{{ h.remarks }}</small>
             {% else %}
             <span class="text-muted">—</span>
             {% endif %}
