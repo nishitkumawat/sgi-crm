@@ -333,23 +333,37 @@ def machine_detail(request, machine_id):
         end_index = min(page_obj.number * per_page_int, total_count)
     dispatches = machine.dispatches.select_related('dispatched_by').order_by('-dispatch_date')[:20]
 
-    # Enrich BOM with available completed stock
+    # Use the full BOM for the build estimate, even when the table is filtered
+    # or paginated. Stock is taken from the completed process, which is what
+    # dispatch consumes.
+    all_bom_items = list(machine.bom_items.select_related('item').all())
     available_by_item = {}
     if completed:
         available_by_item = dict(
             ItemProcess.objects.filter(
                 process=completed,
-                item_id__in=[entry.item_id for entry in bom_items],
+                item_id__in=[entry.item_id for entry in all_bom_items],
             ).values('item_id').order_by().annotate(total=Sum('quantity')).values_list('item_id', 'total')
         )
+
+    max_buildable = None if not all_bom_items else min(
+        int((available_by_item.get(entry.item_id) or 0) / entry.quantity_required)
+        for entry in all_bom_items
+    )
+    dispatch_readiness_percent = None if not all_bom_items else min(
+        min((available_by_item.get(entry.item_id) or 0) / entry.quantity_required * 100, 100)
+        for entry in all_bom_items
+    )
 
     enriched_bom = []
     for entry in bom_items:
         avail = available_by_item.get(entry.item_id) or 0
+        coverage_percent = (avail / entry.quantity_required * 100) if entry.quantity_required else 0
         enriched_bom.append({
             'item': entry.item,
             'quantity_required': entry.quantity_required,
             'available_completed': avail,
+            'coverage_percent': coverage_percent,
         })
 
     context = {
@@ -364,6 +378,8 @@ def machine_detail(request, machine_id):
         'end_index': end_index,
         'total_count': total_count,
         'bom_search': bom_search,
+        'max_buildable': max_buildable,
+        'dispatch_readiness_percent': dispatch_readiness_percent,
     }
     return render(request, 'sgierp/machines/detail.html', context)
 
