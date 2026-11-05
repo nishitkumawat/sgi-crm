@@ -7,10 +7,11 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
 from PIL import Image
 import io
 
-from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
+from SGIERP.decorators import sgi_login_required, sgi_admin_required, sgi_delete_passcode_required, get_sgi_user
 from SGIERP.models import Item, Machine, Process, ItemProcess, Assignee, StockHistory, ERPConfig
 from SGIERP.services import add_initial_stock, move_stock, get_completed_process, get_rejected_process
 
@@ -320,6 +321,8 @@ def item_create(request):
 
 
 @sgi_login_required
+@require_POST
+@sgi_delete_passcode_required
 def item_delete(request, item_id):
     """Delete an item, cascading all dependent records."""
     item = get_object_or_404(Item, id=item_id)
@@ -351,6 +354,8 @@ def item_delete(request, item_id):
 
 
 @sgi_login_required
+@require_POST
+@sgi_delete_passcode_required
 def inventory_entry_delete(request, entry_id):
     """Delete an inventory entry (ItemProcess), cascading any related stock history."""
     entry = get_object_or_404(ItemProcess, id=entry_id)
@@ -987,7 +992,20 @@ def stock_history(request):
     if search:
         history_qs = history_qs.filter(
             Q(item_code_snapshot__icontains=search) |
-            Q(item_name_snapshot__icontains=search)
+            Q(item_name_snapshot__icontains=search) |
+            Q(to_item_code_snapshot__icontains=search) |
+            Q(to_item_name_snapshot__icontains=search) |
+            Q(from_process_name__icontains=search) |
+            Q(to_process_name__icontains=search) |
+            Q(from_assignee_name__icontains=search) |
+            Q(to_assignee_name__icontains=search) |
+            Q(movement_type__icontains=search) |
+            Q(remarks__icontains=search) |
+            Q(unit_snapshot__icontains=search) |
+            Q(quantity__icontains=search) |
+            Q(performed_by__username__icontains=search) |
+            Q(performed_by__first_name__icontains=search) |
+            Q(performed_by__last_name__icontains=search)
         )
 
     if movement_type:

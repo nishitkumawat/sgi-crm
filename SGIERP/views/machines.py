@@ -5,6 +5,7 @@ import re
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.db.models import Sum
 from django.core.paginator import Paginator
@@ -12,7 +13,7 @@ from django.views.decorators.http import require_POST
 from PIL import Image
 import io
 
-from SGIERP.decorators import sgi_login_required, get_sgi_user
+from SGIERP.decorators import sgi_login_required, sgi_delete_passcode_required, get_sgi_user
 from SGIERP.models import Machine, MachineBOM, Item, MachineDispatch, ItemProcess, ERPConfig
 from SGIERP.services import get_completed_process
 
@@ -157,6 +158,7 @@ def machine_edit(request, machine_id):
 
 @sgi_login_required
 @require_POST
+@sgi_delete_passcode_required
 def machine_delete(request, machine_id):
     """Delete a machine that has no dispatch history."""
     machine = get_object_or_404(Machine, id=machine_id)
@@ -205,6 +207,17 @@ def _save_machine(request, machine=None):
         bom_data = []
         errors.append('Invalid BOM data.')
 
+    bom_delete_passcode_invalid = False
+    if machine and isinstance(bom_data, list):
+        existing_item_ids = set(machine.bom_items.values_list('item_id', flat=True))
+        submitted_item_ids = {int(entry['item_id']) for entry in bom_data if isinstance(entry, dict) and str(entry.get('item_id', '')).isdigit()}
+        if existing_item_ids - submitted_item_ids:
+            passcode = request.POST.get('delete_passcode', '')
+            config = ERPConfig.get_solo()
+            if len(passcode) != 4 or not passcode.isdigit() or not check_password(passcode, config.delete_passcode_hash):
+                errors.append('A valid 4-digit delete passcode is required to remove BOM items.')
+                bom_delete_passcode_invalid = True
+
     # Validate BOM
     seen_items = set()
     for entry in bom_data:
@@ -222,6 +235,12 @@ def _save_machine(request, machine=None):
         items = Item.objects.filter(is_active=True).order_by('code')
         for e in errors:
             messages.error(request, e)
+        if bom_delete_passcode_invalid and machine:
+            bom_data_raw = json.dumps([
+                {'item_id': b.item_id, 'item_code': b.item.code, 'item_name': b.item.name,
+                 'item_image': b.item.image.url if b.item.image else '', 'quantity': float(b.quantity_required)}
+                for b in machine.bom_items.select_related('item').all()
+            ])
         return render(request, 'sgierp/machines/form.html', {
             'machine': machine, 'items': items,
             'form_data': request.POST,

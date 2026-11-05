@@ -7,7 +7,7 @@ from SGIERP.views import (
     machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete,
     dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete,
     challan_list, challan_create, challan_detail, challan_print,
-    settings_view, process_create_edit, process_delete, user_list, user_create_edit, assignee_create_edit, assignee_delete, save_erp_config,
+    settings_view, process_create_edit, process_delete, user_list, user_create_edit, assignee_create_edit, assignee_delete, save_erp_config, change_delete_passcode,
     error_view,
 )
 
@@ -81,6 +81,7 @@ urlpatterns = [
     path('settings/assignee/<int:assignee_id>/edit/', assignee_create_edit, name='assignee_edit'),
     path('settings/assignee/<int:assignee_id>/delete/', assignee_delete, name='assignee_delete'),
     path('settings/config/save/', save_erp_config, name='save_erp_config'),
+    path('settings/delete-passcode/', change_delete_passcode, name='change_delete_passcode'),
 
     # ---- Error Handling ----
     path('error/<int:error_code>/', error_view, name='error'),

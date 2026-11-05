@@ -60,7 +60,7 @@
     <a href="{% url 'sgierp:dispatch_challan' dispatch.id %}" target="_blank" class="btn-sgi btn-sgi-primary btn-sgi-sm">
       <i class="bi bi-printer"></i> Print Challan
     </a>
-    <form method="POST" action="{% url 'sgierp:dispatch_delete' dispatch.id %}" style="margin:0;" onsubmit="return confirm('Delete dispatch #{{ dispatch.id }}? The consumed stock will be restored to Completed.');">
+    <form method="POST" action="{% url 'sgierp:dispatch_delete' dispatch.id %}" data-delete-action data-delete-confirm="Delete dispatch #{{ dispatch.id }}? The consumed stock will be restored to Completed." style="margin:0;">
       {% csrf_token %}
       <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-sm" style="color:var(--sgi-danger);">
         <i class="bi bi-trash3"></i> Delete Dispatch

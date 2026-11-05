@@ -8,7 +8,7 @@ from django.db.models import Sum, Q
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
-from SGIERP.decorators import sgi_login_required, get_sgi_user
+from SGIERP.decorators import sgi_login_required, sgi_delete_passcode_required, get_sgi_user
 from SGIERP.models import Machine, MachineDispatch, MachineBOM, ItemProcess, Item, ERPConfig
 from SGIERP.services import dispatch_machine, dispatch_item, delete_dispatch, get_completed_process
 
@@ -236,6 +236,7 @@ def dispatch_detail(request, dispatch_id):
 
 @sgi_login_required
 @require_POST
+@sgi_delete_passcode_required
 def dispatch_delete(request, dispatch_id):
     """Delete a dispatch and restore the stock it consumed."""
     dispatch = get_object_or_404(MachineDispatch, id=dispatch_id)

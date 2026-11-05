@@ -533,6 +533,7 @@ class ERPConfig(models.Model):
         ('red', 'Red'),
     ]
     primary_theme = models.CharField(max_length=20, choices=THEME_CHOICES, default='orange')
+    delete_passcode_hash = models.CharField(max_length=128, blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -547,4 +548,8 @@ class ERPConfig(models.Model):
     def get_solo(cls):
         """Return the singleton config row, creating it with defaults if missing."""
         obj, _ = cls.objects.get_or_create(id=1)
+        if not obj.delete_passcode_hash:
+            from django.contrib.auth.hashers import make_password
+            obj.delete_passcode_hash = make_password('1234')
+            obj.save(update_fields=['delete_passcode_hash'])
         return obj

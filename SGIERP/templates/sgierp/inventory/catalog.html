@@ -118,9 +118,12 @@
               <a href="{% url 'sgierp:stock_move' %}?item={{ item.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Add Stock">
                 <i class="bi bi-plus-circle"></i>
               </a>
-              <a href="{% url 'sgierp:item_delete' item.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete item {{ item.code }}? This cannot be undone.');" title="Delete">
+              <form method="POST" action="{% url 'sgierp:item_delete' item.id %}" data-delete-action data-delete-confirm="Delete item {{ item.code }}? This cannot be undone." style="display:inline;margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" title="Delete" aria-label="Delete item {{ item.code }}">
                 <i class="bi bi-trash"></i>
-              </a>
+                </button>
+              </form>
             </div>
           </td>
         </tr>

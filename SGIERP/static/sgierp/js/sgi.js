@@ -18,6 +18,39 @@ document.addEventListener('DOMContentLoaded', function () {
   // Hide loader on page load
   hidePageLoader();
 
+  document.addEventListener('submit', function(event) {
+    const form = event.target instanceof Element ? event.target.closest('form[data-delete-action]') : null;
+    if (!form) return;
+
+    if (form.dataset.deleteConfirm && !window.confirm(form.dataset.deleteConfirm)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    const passcode = window.prompt('Enter the 4-digit delete passcode:');
+    if (passcode === null) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (!/^\d{4}$/.test(passcode)) {
+      window.alert('Enter exactly 4 digits. Nothing was deleted.');
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    let passcodeInput = form.querySelector('input[name="delete_passcode"]');
+    if (!passcodeInput) {
+      passcodeInput = document.createElement('input');
+      passcodeInput.type = 'hidden';
+      passcodeInput.name = 'delete_passcode';
+      form.appendChild(passcodeInput);
+    }
+    passcodeInput.value = passcode;
+  }, true);
+
   // Shared keyboard behavior for lookup/autocomplete fields across the site.
   document.addEventListener('keydown', function(event) {
     const input = event.target instanceof Element ? event.target.closest(
@@ -605,6 +638,22 @@ function initBomEditor() {
     bomContainer.querySelectorAll('.bom-row-remove').forEach(btn => {
       btn.addEventListener('click', function() {
         const idx = +this.dataset.idx;
+        if (bomRows[idx]?.item_id) {
+          const passcode = window.prompt('Enter the 4-digit delete passcode to remove this BOM item:');
+          if (passcode === null) return;
+          if (!/^\d{4}$/.test(passcode)) {
+            window.alert('Enter exactly 4 digits. The BOM item was not removed.');
+            return;
+          }
+          let passcodeInput = machineForm.querySelector('input[name="delete_passcode"]');
+          if (!passcodeInput) {
+            passcodeInput = document.createElement('input');
+            passcodeInput.type = 'hidden';
+            passcodeInput.name = 'delete_passcode';
+            machineForm.appendChild(passcodeInput);
+          }
+          passcodeInput.value = passcode;
+        }
         const focusIndex = [...bomContainer.querySelectorAll('.bom-row-remove')].indexOf(this);
         const scrollX = window.scrollX;
         const scrollY = window.scrollY;

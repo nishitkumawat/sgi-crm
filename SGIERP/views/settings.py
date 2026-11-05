@@ -5,9 +5,14 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
+from django.contrib.auth.hashers import make_password
+import re
 
-from SGIERP.decorators import sgi_login_required, sgi_admin_required, get_sgi_user
+from SGIERP.decorators import sgi_login_required, sgi_admin_required, sgi_delete_passcode_required, get_sgi_user
 from SGIERP.models import Process, ERPUserProfile, Assignee, ERPConfig
+
+DELETE_PASSCODE_ADMIN_EMAIL = 'admin@shreegayatri-industries.com'
 
 
 def _paginate_settings_rows(request, queryset, default_per_page):
@@ -50,9 +55,6 @@ def settings_view(request):
     # Check which settings page is being requested
     url_name = request.resolver_match.url_name
 
-    if url_name in ('settings_processes', 'settings_assignees') and user.erp_profile.role != 'admin':
-        return redirect('sgierp:dashboard')
-
     if url_name == 'inventory_setup':
         template = 'sgierp/inventory/setup.html'
         context = {'processes': processes, 'assignees': assignees}
@@ -86,9 +88,38 @@ def settings_view(request):
             'erp_users': erp_users,
             'assignees': assignees,
             'erp_config': user.erp_profile,
+            'can_change_delete_passcode': (
+                user.email.strip().casefold() == DELETE_PASSCODE_ADMIN_EMAIL and
+                user.erp_profile.role == 'admin' and user.erp_profile.is_erp_active
+            ),
         }
 
     return render(request, template, context)
+
+
+@sgi_login_required
+@require_POST
+def change_delete_passcode(request):
+    """Let only the designated active ERP admin change the delete passcode."""
+    user = get_sgi_user(request)
+    profile = getattr(user, 'erp_profile', None) if user else None
+    if (not user or user.email.strip().casefold() != DELETE_PASSCODE_ADMIN_EMAIL or
+            not profile or profile.role != 'admin' or not profile.is_erp_active):
+        messages.error(request, 'Only the designated ERP admin can change the delete passcode.')
+        return redirect('sgierp:settings')
+
+    new_passcode = request.POST.get('new_delete_passcode', '')
+    confirm_passcode = request.POST.get('confirm_delete_passcode', '')
+    if not re.fullmatch(r'\d{4}', new_passcode):
+        messages.error(request, 'The delete passcode must be exactly four digits.')
+    elif new_passcode != confirm_passcode:
+        messages.error(request, 'The delete passcode entries do not match.')
+    else:
+        config = ERPConfig.get_solo()
+        config.delete_passcode_hash = make_password(new_passcode)
+        config.save(update_fields=['delete_passcode_hash', 'updated_at'])
+        messages.success(request, 'Delete passcode updated successfully.')
+    return redirect('sgierp:settings')
 
 
 @sgi_admin_required
@@ -170,7 +201,9 @@ def process_create_edit(request, process_id=None):
     return render(request, 'sgierp/settings/process_form.html', context)
 
 
-@sgi_admin_required
+@sgi_login_required
+@require_POST
+@sgi_delete_passcode_required
 def process_delete(request, process_id):
     """Delete a process with validation, cascading history."""
     process = get_object_or_404(Process, id=process_id)
@@ -335,7 +368,9 @@ def assignee_create_edit(request, assignee_id=None):
     })
 
 
-@sgi_admin_required
+@sgi_login_required
+@require_POST
+@sgi_delete_passcode_required
 def assignee_delete(request, assignee_id):
     """Deletean assignee with validation."""
     assignee = get_object_or_404(Assignee, id=assignee_id)

@@ -20,9 +20,11 @@
           <i class="bi bi-download"></i> Export
         </button>
       </div>
+      {% if sgi_profile.role == 'admin' %}
       <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
         <i class="bi bi-plus-lg"></i> Add
       </a>
+      {% endif %}
     </div>
   </div>
   <div class="filters-bar">
@@ -81,12 +83,17 @@
               <a href="{% url 'sgierp:process_history' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View stock history">
                 <i class="bi bi-clock-history"></i>
               </a>
-              <a href="{% url 'sgierp:process_edit' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'sgierp:process_delete' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete this process?');">
-                <i class="bi bi-trash"></i>
-              </a>
+                {% if sgi_profile.role == 'admin' %}
+                <a href="{% url 'sgierp:process_edit' p.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+              <form method="POST" action="{% url 'sgierp:process_delete' p.id %}" data-delete-action data-delete-confirm="Delete this process?" style="display:inline;margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" title="Delete process">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>
@@ -98,11 +105,11 @@
       <div class="sgi-empty-icon">⚙️</div>
       <h4>No processes configured</h4>
       <p>{% if search %}No processes match your search. <a href="{% url 'sgierp:settings_processes' %}">Clear search</a>.{% else %}Add manufacturing workflow stages to track production.{% endif %}</p>
-      <div style="margin-top:16px;">
+      {% if sgi_profile.role == 'admin' %}<div style="margin-top:16px;">
         <a href="{% url 'sgierp:process_create' %}" class="btn-sgi btn-sgi-primary">
           <i class="bi bi-plus-lg"></i> Add Process
         </a>
-      </div>
+      </div>{% endif %}
     </div>
     {% endif %}
   </div>

@@ -20,9 +20,11 @@
           <i class="bi bi-download"></i> Export
         </button>
       </div>
+      {% if sgi_profile.role == 'admin' %}
       <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
         <i class="bi bi-plus-lg"></i> Add Assignee
       </a>
+      {% endif %}
     </div>
   </div>
   <div class="filters-bar">
@@ -77,12 +79,17 @@
               <a href="{% url 'sgierp:assignee_history' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View stock history">
                 <i class="bi bi-clock-history"></i>
               </a>
-              <a href="{% url 'sgierp:assignee_edit' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'sgierp:assignee_delete' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete this assignee?');">
-                <i class="bi bi-trash"></i>
-              </a>
+                {% if sgi_profile.role == 'admin' %}
+                <a href="{% url 'sgierp:assignee_edit' a.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+              <form method="POST" action="{% url 'sgierp:assignee_delete' a.id %}" data-delete-action data-delete-confirm="Delete this assignee?" style="display:inline;margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" title="Delete assignee">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>
@@ -94,11 +101,11 @@
       <div class="sgi-empty-icon">👥</div>
       <h4>No assignees yet</h4>
       <p>{% if search %}No assignees match your search. <a href="{% url 'sgierp:settings_assignees' %}">Clear search</a>.{% else %}Add workers/staff who can be assigned stock.{% endif %}</p>
-      <div style="margin-top:16px;">
+      {% if sgi_profile.role == 'admin' %}<div style="margin-top:16px;">
         <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary">
           <i class="bi bi-plus-lg"></i> Add Assignee
         </a>
-      </div>
+      </div>{% endif %}
     </div>
     {% endif %}
   </div>

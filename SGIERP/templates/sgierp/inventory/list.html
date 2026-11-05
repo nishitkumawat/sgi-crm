@@ -131,9 +131,12 @@
                 <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move Stock">
                   <i class="bi bi-arrow-right-circle"></i>
                 </a>
-                <a href="{% url 'sgierp:inventory_entry_delete' entry.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" onclick="return confirm('Delete this inventory entry? Related history will also be removed.');" title="Delete Entry">
-                  <i class="bi bi-trash"></i>
-                </a>
+                <form method="POST" action="{% url 'sgierp:inventory_entry_delete' entry.id %}" data-delete-action data-delete-confirm="Delete this inventory entry? Related history will also be removed." style="display:inline;margin:0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" title="Delete Entry" aria-label="Delete inventory entry">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
               </div>
             </td>
           </tr>

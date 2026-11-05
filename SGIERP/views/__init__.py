@@ -7,7 +7,7 @@ from .inventory import (
 from .machines import machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete
 from .dispatch import dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete
 from .challan import challan_list, challan_create, challan_detail, challan_print
-from .settings import settings_view, process_create_edit, process_delete, user_list, user_create_edit, assignee_create_edit, assignee_delete, save_erp_config
+from .settings import settings_view, process_create_edit, process_delete, user_list, user_create_edit, assignee_create_edit, assignee_delete, save_erp_config, change_delete_passcode
 from .common import error_view, custom_404, custom_500, custom_403
 
 __all__ = [
@@ -17,6 +17,6 @@ __all__ = [
     'machine_list', 'machine_create', 'machine_edit', 'machine_detail', 'machine_bom_export', 'machine_delete',
     'dispatch_list', 'dispatch_create', 'dispatch_detail', 'dispatch_challan', 'dispatch_delete',
     'challan_list', 'challan_create', 'challan_detail', 'challan_print',
-    'settings_view', 'process_create_edit', 'process_delete', 'user_list', 'user_create_edit', 'assignee_create_edit', 'assignee_delete', 'save_erp_config',
+    'settings_view', 'process_create_edit', 'process_delete', 'user_list', 'user_create_edit', 'assignee_create_edit', 'assignee_delete', 'save_erp_config', 'change_delete_passcode',
     'error_view',
 ]

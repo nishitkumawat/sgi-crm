@@ -34,6 +34,32 @@
   </div>
 </div>
 
+{% if can_change_delete_passcode %}
+<div class="sgi-card" style="max-width:1200px;margin:0 auto 24px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-shield-lock"></i></div>
+      Delete Passcode
+    </div>
+  </div>
+  <div style="padding:18px;">
+    <form method="POST" action="{% url 'sgierp:change_delete_passcode' %}" style="display:flex;align-items:end;gap:12px;flex-wrap:wrap;">
+      {% csrf_token %}
+      <div class="sgi-form-group" style="margin:0;">
+        <label class="sgi-label" for="newDeletePasscode">New 4-digit passcode</label>
+        <input id="newDeletePasscode" class="sgi-input" type="password" name="new_delete_passcode" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required>
+      </div>
+      <div class="sgi-form-group" style="margin:0;">
+        <label class="sgi-label" for="confirmDeletePasscode">Confirm passcode</label>
+        <input id="confirmDeletePasscode" class="sgi-input" type="password" name="confirm_delete_passcode" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required>
+      </div>
+      <button type="submit" class="btn-sgi btn-sgi-primary btn-sgi-sm"><i class="bi bi-check-lg"></i> Change Passcode</button>
+    </form>
+    <div class="sgi-input-hint" style="margin-top:8px;">Only this administrator account can change the passcode.</div>
+  </div>
+</div>
+{% endif %}
+
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;margin:0 auto;">
   {% comment %}
   <!-- Processes Card -->
