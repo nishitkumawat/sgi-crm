@@ -56,8 +56,11 @@ def challan_list(request):
         end_index = min(page_obj.number * per_page, paginator.count)
         total_count = paginator.count
 
+    items_count_total = sum(challan.items.count() for challan in challans)
+
     context = {
         'challans': challans,
+        'items_count_total': items_count_total,
         'page_obj': page_obj,
         'search': search,
         'date_from': date_from,
@@ -212,6 +215,7 @@ def challan_detail(request, challan_id):
     context = {
         'challan': challan,
         'items': challan.items.all(),
+        'items_quantity_total': challan.items.aggregate(total=Sum('quantity'))['total'] or 0,
         'page_title': f'Challan {challan.challan_number}',
     }
     return render(request, 'sgierp/challan/detail.html', context)
@@ -232,6 +236,7 @@ def challan_print(request, challan_id):
     context = {
         'challan': challan,
         'items': challan.items.all(),
+        'items_quantity_total': challan.items.aggregate(total=Sum('quantity'))['total'] or 0,
         'blank_rows': range(blank_rows),
         'sgi_user': get_sgi_user(request),
         'sgi_profile': get_sgi_user(request).erp_profile if get_sgi_user(request) else None,

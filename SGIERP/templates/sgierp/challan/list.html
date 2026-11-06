@@ -12,9 +12,7 @@
     </div>
     <div class="sgi-card-actions">
       <div class="sgi-card-actions-row">
-        <button onclick="exportTableToExcel('challanTable', 'challans')" class="btn-sgi btn-sgi-outline">
-          <i class="bi bi-download"></i> Export
-        </button>
+        {% include 'sgierp/components/export_menu.html' with table_id='challanTable' filename='challans' title='Challans' %}
       </div>
       <div class="sgi-card-actions-primary">
         <a href="{% url 'sgierp:challan_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
@@ -98,6 +96,7 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot><tr><th colspan="4">Total Items</th><th>{{ items_count_total }}</th><th colspan="3"></th></tr></tfoot>
       </table>
       {% else %}
       <div class="sgi-empty" style="padding:30px;">

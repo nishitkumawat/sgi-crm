@@ -51,6 +51,7 @@
                     <th>Item Code</th>
                     <th>Item Name</th>
                     <th>Quantity</th>
+                    <th>Price</th>
                     <th>Unit</th>
                     <th>Assigned To</th>
                     <th>Assigned At</th>
@@ -62,6 +63,7 @@
                     <td>{{ entry.item.code }}</td>
                     <td>{{ entry.item.name }}</td>
                     <td>{{ entry.quantity|floatformat:2 }}</td>
+                    <td>{{ entry.price|floatformat:2 }}</td>
                     <td>{{ entry.item.unit }}</td>
                     <td>
                       {% if entry.assigned_to %}
@@ -79,6 +81,7 @@
                     </td>
                   </tr>
                   {% endfor %}
+                  <tr><th colspan="2">Total</th><th>{{ p_data.total|floatformat:2 }}</th><th>{{ p_data.price_total|floatformat:2 }}</th><th colspan="3"></th></tr>
                 </tbody>
               </table>
               </div>
@@ -100,6 +103,7 @@
                   <th>Item Code</th>
                   <th>Item Name</th>
                   <th>Quantity</th>
+                  <th>Price</th>
                   <th>Unit</th>
                   <th>Assigned To</th>
                   <th>Assigned At</th>
@@ -111,6 +115,7 @@
                   <td>{{ entry.item.code }}</td>
                   <td>{{ entry.item.name }}</td>
                   <td>{{ entry.quantity|floatformat:2 }}</td>
+                  <td>{{ entry.price|floatformat:2 }}</td>
                   <td>{{ entry.item.unit }}</td>
                   <td>
                     {% if entry.assigned_to %}
@@ -128,6 +133,7 @@
                   </td>
                 </tr>
                 {% endfor %}
+                <tr><th colspan="2">Total</th><th>{{ p_data.total|floatformat:2 }}</th><th>{{ p_data.price_total|floatformat:2 }}</th><th colspan="3"></th></tr>
               </tbody>
             </table>
             </div>

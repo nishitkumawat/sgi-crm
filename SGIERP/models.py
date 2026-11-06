@@ -173,6 +173,7 @@ class ItemProcess(models.Model):
     item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name='process_entries')
     process = models.ForeignKey(Process, on_delete=models.PROTECT, related_name='item_entries')
     quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     assigned_to = models.ForeignKey(
         Assignee, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='assigned_items'
@@ -223,6 +224,7 @@ class StockHistory(models.Model):
         related_name='history_to', help_text="Destination process (null for conversions)"
     )
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPE_CHOICES, default='move')
     
     # Assignment tracking

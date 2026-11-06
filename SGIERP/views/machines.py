@@ -94,12 +94,17 @@ def machine_list(request):
         total_count = paginator.count
 
     dispatch_counts = {}
+    bom_counts = {}
     for m in machines:
         dispatch_counts[m.id] = MachineDispatch.objects.filter(machine=m).count()
+        bom_counts[m.id] = m.bom_items.count()
 
     context = {
         'machines': machines,
         'dispatch_counts': dispatch_counts,
+        'bom_counts': bom_counts,
+        'bom_count_total': sum(bom_counts.values()),
+        'dispatch_count_total': sum(dispatch_counts.values()),
         'search': search,
         'page_title': 'Machines',
         'page_obj': page_obj,
@@ -316,6 +321,7 @@ def machine_detail(request, machine_id):
             or normalized_search in entry.item.name.casefold()
             or normalized_search in entry.item.code.casefold()
         ]
+    bom_quantity_total = sum((entry.quantity_required for entry in bom_items_qs), 0)
     per_page = request.GET.get('per_page', _get_default_per_page(request))
     if per_page == 'all':
         bom_items = bom_items_qs
@@ -332,6 +338,7 @@ def machine_detail(request, machine_id):
         start_index = (page_obj.number - 1) * per_page_int + 1 if total_count else 0
         end_index = min(page_obj.number * per_page_int, total_count)
     dispatches = machine.dispatches.select_related('dispatched_by').order_by('-dispatch_date')[:20]
+    dispatch_total_count = sum(d.machine_count for d in dispatches)
 
     # Use the full BOM for the build estimate, even when the table is filtered
     # or paginated. Stock is taken from the completed process, which is what
@@ -356,6 +363,7 @@ def machine_detail(request, machine_id):
     )
 
     enriched_bom = []
+    available_completed_total = sum((available_by_item.get(entry.item_id) or 0 for entry in bom_items_qs), 0)
     for entry in bom_items:
         avail = available_by_item.get(entry.item_id) or 0
         coverage_percent = (avail / entry.quantity_required * 100) if entry.quantity_required else 0
@@ -369,7 +377,10 @@ def machine_detail(request, machine_id):
     context = {
         'machine': machine,
         'enriched_bom': enriched_bom,
+        'bom_quantity_total': bom_quantity_total,
+        'available_completed_total': available_completed_total,
         'dispatches': dispatches,
+        'dispatch_total_count': dispatch_total_count,
         'page_title': f'{machine.code} - {machine.name}',
         'page_obj': page_obj,
         'per_page': per_page,

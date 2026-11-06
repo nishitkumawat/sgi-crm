@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="sgi-card">
+<div class="sgi-card history-page-card">
   <div class="sgi-card-header">
     <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-clock-history"></i></div>{{ entity_type }} History — {{ entity_name }}</div>
   </div>
@@ -18,30 +18,36 @@
         <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
         <input type="text" class="sgi-input" name="q" value="{{ search }}" placeholder="Search item or description..." style="border:none;">
       </div>
+      <input class="sgi-input" type="date" name="date_from" value="{{ history_filters.date_from }}" aria-label="From date"><input class="sgi-input" type="date" name="date_to" value="{{ history_filters.date_to }}" aria-label="To date">
+      <select class="sgi-select" name="from_process"><option value="">Any source process</option>{% for p in processes %}<option value="{{ p.id }}" {% if history_filters.from_process == p.id|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+      <select class="sgi-select" name="to_process"><option value="">Any destination process</option>{% for p in processes %}<option value="{{ p.id }}" {% if history_filters.to_process == p.id|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+      <select class="sgi-select" name="from_assignee"><option value="">Any source assignee</option>{% for a in assignees %}<option value="{{ a.id }}" {% if history_filters.from_assignee == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
+      <select class="sgi-select" name="to_assignee"><option value="">Any destination assignee</option>{% for a in assignees %}<option value="{{ a.id }}" {% if history_filters.to_assignee == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
       <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-search"></i> Search</button>
-      {% if search %}<a href="?" class="btn-sgi btn-sgi-outline">Clear</a>{% endif %}
+      {% if search or history_filters.date_from or history_filters.date_to or history_filters.from_process or history_filters.to_process or history_filters.from_assignee or history_filters.to_assignee %}<a href="?" class="btn-sgi btn-sgi-outline">Clear</a>{% endif %}
     </form>
   </div>
   <div class="sgi-card-body">
-    <div class="sgi-table-wrap">
+    <div class="sgi-table-wrap history-responsive-wrap">
       {% if history %}
-      <table class="sgi-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Item</th><th>From Process</th><th>To Process</th><th>Quantity</th><th>From Assignee</th><th>To Assignee</th><th>Description</th></tr></thead>
+      <table class="sgi-table history-responsive-table entity-history-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Item</th><th class="history-from-cell">From</th><th class="history-flow-arrow"></th><th class="history-to-cell">To</th><th>Quantity</th><th>Price</th><th>Description</th></tr></thead>
         <tbody>
           {% for entry in history %}
           <tr>
             <td>{{ entry.created_at|date:"d M Y, h:i A" }}</td>
             <td>{{ entry.get_movement_type_display }}</td>
-            <td><strong>{{ entry.item_code_snapshot }}</strong><br>{{ entry.item_name_snapshot }}</td>
-            <td>{{ entry.from_process_name|default:"—" }}</td>
-            <td>{{ entry.to_process_name|default:"—" }}</td>
+            <td><div style="display:flex;align-items:center;gap:8px;min-width:150px;">{% if entry.item.image %}<img src="{{ entry.item.image.url }}" alt="{{ entry.item_name_snapshot }}" class="history-export-image" style="width:42px;height:42px;flex:0 0 42px;object-fit:cover;border-radius:4px;">{% endif %}<div><strong>{{ entry.item_code_snapshot }}</strong><br>{{ entry.item_name_snapshot }}</div></div></td>
+            <td class="history-from-cell"><div class="history-party"><span><small title="Process" aria-label="Process"><i class="bi bi-gear-wide-connected"></i></small>{{ entry.from_process_name|default:"—" }}</span><span><small title="Assignee" aria-label="Assignee"><i class="bi bi-person"></i></small>{{ entry.from_assignee_name|default:"—" }}</span></div></td>
+            <td class="history-flow-arrow" aria-label="to">→</td>
+            <td class="history-to-cell"><div class="history-party"><span><small title="Process" aria-label="Process"><i class="bi bi-gear-wide-connected"></i></small>{{ entry.to_process_name|default:"—" }}</span><span><small title="Assignee" aria-label="Assignee"><i class="bi bi-person"></i></small>{{ entry.to_assignee_name|default:"—" }}</span></div></td>
             <td><strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.unit_snapshot }}</td>
-            <td>{{ entry.from_assignee_name|default:"—" }}</td>
-            <td>{{ entry.to_assignee_name|default:"—" }}</td>
+            <td>{{ entry.price|floatformat:2 }}</td>
             <td>{{ entry.remarks|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot><tr><th colspan="6">Total</th><th>{{ history_totals.quantity|default:0|floatformat:2 }}</th><th>{{ history_totals.price|default:0|floatformat:2 }}</th><th></th></tr></tfoot>
       </table>
       {% else %}
       <div class="sgi-empty"><div class="sgi-empty-icon">📋</div><h4>No history found</h4><p>Movements mentioning this {{ entity_type|lower }} as From or To will appear here.</p></div>

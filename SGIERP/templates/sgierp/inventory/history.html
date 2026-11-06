@@ -4,62 +4,92 @@
 
 {% block content %}
 <div class="sgi-content-scrollable">
-<div class="sgi-card">
+<div class="sgi-card history-page-card">
   <div class="sgi-card-header">
     <div class="sgi-card-title">
       <div class="card-icon"><i class="bi bi-clock-history"></i></div>
       Stock History
     </div>
     <div class="sgi-card-actions">
-      <button onclick="exportTableToExcel('historyTable', 'stock_history')" class="btn-sgi btn-sgi-outline">
-        <i class="bi bi-download"></i> Export
-      </button>
+      {% include 'sgierp/components/export_menu.html' with table_id='historyTable' filename='stock_history' title='Stock History' %}
     </div>
   </div>
 
   <!-- Filters -->
-  <div class="filters-bar">
-    <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;">
-      <div class="sgi-input-group" style="flex:1;min-width:200px;">
+  <div class="filters-bar stock-history-toolbar">
+    <form method="GET" class="stock-history-search">
+      <div class="sgi-input-group">
         <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
-        <input type="text" class="sgi-input" name="q" value="{{ search }}"
+        <input type="search" class="sgi-input" name="q" value="{{ search }}"
           placeholder="Search code, name, assignee, process..." style="border:none;">
       </div>
-      <select class="sgi-select" name="type" style="min-width:160px;">
-        <option value="">All Types</option>
-        <option value="initial" {% if movement_type == 'initial' %}selected{% endif %}>Initial Stock</option>
-        <option value="move" {% if movement_type == 'move' %}selected{% endif %}>Stock Movement</option>
-        <option value="dispatch" {% if movement_type == 'dispatch' %}selected{% endif %}>Dispatch</option>
-        <option value="adjustment" {% if movement_type == 'adjustment' %}selected{% endif %}>Adjustment</option>
-      </select>
-      <button type="submit" class="btn-sgi btn-sgi-primary">
-        <i class="bi bi-funnel"></i> Apply
-      </button>
-      {% if search or movement_type %}
-      <a href="{% url 'sgierp:stock_history' %}" class="btn-sgi btn-sgi-outline">
-        <i class="bi bi-x"></i> Clear
-      </a>
-      {% endif %}
+      <input type="hidden" name="type" value="{{ movement_type }}">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      <input type="hidden" name="date_from" value="{{ history_filters.date_from }}">
+      <input type="hidden" name="date_to" value="{{ history_filters.date_to }}">
+      {% for id in history_filters.from_process %}<input type="hidden" name="from_process" value="{{ id }}">{% endfor %}
+      {% for id in history_filters.to_process %}<input type="hidden" name="to_process" value="{{ id }}">{% endfor %}
+      {% for id in history_filters.from_assignee %}<input type="hidden" name="from_assignee" value="{{ id }}">{% endfor %}
+      {% for id in history_filters.to_assignee %}<input type="hidden" name="to_assignee" value="{{ id }}">{% endfor %}
+      <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-search"></i> Search</button>
     </form>
+    <button type="button" class="btn-sgi btn-sgi-outline" id="openStockHistoryFilters">
+      <i class="bi bi-funnel"></i> Filter{% if filter_active %} (Applied){% endif %}
+    </button>
   </div>
+
+  <dialog id="stockHistoryFilterDialog" class="stock-history-filter-dialog" aria-labelledby="stockHistoryFilterTitle">
+    <form method="GET" class="stock-history-filter-form">
+      <div class="stock-history-filter-header">
+        <div><h2 id="stockHistoryFilterTitle">Filter Stock History</h2><p>Select one or more processes or assignees.</p></div>
+        <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-icon" id="closeStockHistoryFilters" aria-label="Close">×</button>
+      </div>
+      <input type="hidden" name="q" value="{{ search }}">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      <div class="stock-history-filter-grid">
+        <label class="sgi-form-group"><span class="sgi-label">Movement type</span>
+          <select class="sgi-select" name="type">
+            <option value="">All Types</option>
+            <option value="initial" {% if movement_type == 'initial' %}selected{% endif %}>Initial Stock</option>
+            <option value="move" {% if movement_type == 'move' %}selected{% endif %}>Stock Movement</option>
+            <option value="convert" {% if movement_type == 'convert' %}selected{% endif %}>Convert Item</option>
+            <option value="dispatch" {% if movement_type == 'dispatch' %}selected{% endif %}>Dispatch</option>
+            <option value="adjustment" {% if movement_type == 'adjustment' %}selected{% endif %}>Adjustment</option>
+          </select>
+        </label>
+        <label class="sgi-form-group"><span class="sgi-label">From date</span><input class="sgi-input" type="date" name="date_from" value="{{ history_filters.date_from }}"></label>
+        <label class="sgi-form-group"><span class="sgi-label">To date</span><input class="sgi-input" type="date" name="date_to" value="{{ history_filters.date_to }}"></label>
+        <div class="stock-history-pair">
+        <fieldset class="stock-history-check-group"><legend>From process</legend><div>{% for p in processes %}<label><input type="checkbox" name="from_process" value="{{ p.id }}" {% if p.id|stringformat:'s' in history_filters.from_process %}checked{% endif %}> {{ p.name }}</label>{% empty %}<span>No processes available</span>{% endfor %}</div></fieldset>
+        <fieldset class="stock-history-check-group"><legend>To process</legend><div>{% for p in processes %}<label><input type="checkbox" name="to_process" value="{{ p.id }}" {% if p.id|stringformat:'s' in history_filters.to_process %}checked{% endif %}> {{ p.name }}</label>{% empty %}<span>No processes available</span>{% endfor %}</div></fieldset>
+        </div>
+        <div class="stock-history-pair">
+        <fieldset class="stock-history-check-group"><legend>From assignee</legend><div>{% for a in assignees %}<label><input type="checkbox" name="from_assignee" value="{{ a.id }}" {% if a.id|stringformat:'s' in history_filters.from_assignee %}checked{% endif %}> {{ a.name }}</label>{% empty %}<span>No assignees available</span>{% endfor %}</div></fieldset>
+        <fieldset class="stock-history-check-group"><legend>To assignee</legend><div>{% for a in assignees %}<label><input type="checkbox" name="to_assignee" value="{{ a.id }}" {% if a.id|stringformat:'s' in history_filters.to_assignee %}checked{% endif %}> {{ a.name }}</label>{% empty %}<span>No assignees available</span>{% endfor %}</div></fieldset>
+        </div>
+      </div>
+      <div class="stock-history-filter-actions">
+        <a href="{% url 'sgierp:stock_history' %}?q={{ search|urlencode }}&per_page={{ per_page|urlencode }}" class="btn-sgi btn-sgi-outline">Clear filters</a>
+        <button type="button" class="btn-sgi btn-sgi-outline" id="cancelStockHistoryFilters">Cancel</button>
+        <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-funnel"></i> Apply filters</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Table -->
   <div class="sgi-card-body">
-    <div class="sgi-table-wrap">
+    <div class="sgi-table-wrap history-responsive-wrap">
       {% if history %}
-      <table class="sgi-table" id="historyTable">
+      <table class="sgi-table history-responsive-table" id="historyTable">
         <thead>
           <tr>
             <th>Date & Time</th>
             <th>Type</th>
             <th>Item</th>
-            <th>From Process</th>
-            <th>To Process</th>
+            <th class="history-from-cell">From</th><th class="history-flow-arrow"></th><th class="history-to-cell">To</th>
             <th>Quantity</th>
-            <th>From Assignee</th>
-            <th>To Assignee</th>
+            <th>Price</th>
             <th>Performed By</th>
-            <th>Description</th>
           </tr>
         </thead>
         <tbody>
@@ -84,36 +114,18 @@
               </span>
             </td>
             <td>
-              <div style="font-size:12px;color:var(--sgi-text-muted);">{{ entry.item_code_snapshot }}</div>
-              <div style="font-weight:600;">{{ entry.item_name_snapshot }}</div>
+              <div style="display:flex;align-items:center;gap:8px;min-width:150px;">
+                {% if entry.item.image %}<img src="{{ entry.item.image.url }}" alt="{{ entry.item_name_snapshot }}" class="history-export-image" style="width:42px;height:42px;flex:0 0 42px;object-fit:cover;border-radius:4px;">{% endif %}
+                <div><div style="font-size:12px;color:var(--sgi-text-muted);">{{ entry.item_code_snapshot }}</div><div style="font-weight:600;">{{ entry.item_name_snapshot }}</div></div>
+              </div>
             </td>
-            <td>
-              {% if entry.from_process_name %}
-              <span  style="font-size:12px;">{{ entry.from_process_name }}</span>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>
-              <span  style="font-size:12px;">{{ entry.to_process_name }}</span>
-            </td>
+            <td class="history-from-cell"><div class="history-party"><span><small title="Process" aria-label="Process"><i class="bi bi-gear-wide-connected"></i></small>{{ entry.from_process_name|default:"—" }}</span><span><small title="Assignee" aria-label="Assignee"><i class="bi bi-person"></i></small>{{ entry.from_assignee_name|default:"—" }}</span></div></td>
+            <td class="history-flow-arrow" aria-label="to">→</td>
+            <td class="history-to-cell"><div class="history-party"><span><small title="Process" aria-label="Process"><i class="bi bi-gear-wide-connected"></i></small>{{ entry.to_process_name|default:"—" }}</span><span><small title="Assignee" aria-label="Assignee"><i class="bi bi-person"></i></small>{{ entry.to_assignee_name|default:"—" }}</span></div></td>
             <td>
               <strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.unit_snapshot }}
             </td>
-            <td>
-              {% if entry.from_assignee_name %}
-              <span style="color:var(--sgi-primary);">{{ entry.from_assignee_name }}</span>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if entry.to_assignee_name %}
-              <span style="color:var(--sgi-success);">{{ entry.to_assignee_name }}</span>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
+            <td>{{ entry.price|floatformat:2 }}</td>
             <td>
               {% if entry.performed_by %}
               <span style="font-size:12px;">{{ entry.performed_by.get_full_name|default:entry.performed_by.username }}</span>
@@ -121,16 +133,17 @@
               <span class="text-muted">—</span>
               {% endif %}
             </td>
-            <td style="max-width:280px;white-space:normal;">{{ entry.remarks|default:"—" }}</td>
+            <!-- <td style="max-width:280px;white-space:normal;">{{ entry.remarks|default:"—" }}</td> -->
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot><tr><th colspan="6">Total</th><th>{{ history_totals.quantity|default:0|floatformat:2 }}</th><th>{{ history_totals.price|default:0|floatformat:2 }}</th><th></th></tr></tfoot>
       </table>
       {% else %}
       <div class="sgi-empty">
         <div class="sgi-empty-icon">📋</div>
         <h4>No history found</h4>
-        <p>{% if search or movement_type %}Try clearing the filters.{% else %}Stock movements will appear here as you perform operations.{% endif %}</p>
+        <p>{% if search or filter_active %}Try clearing the search or filters.{% else %}Stock movements will appear here as you perform operations.{% endif %}</p>
       </div>
       {% endif %}
     </div>
@@ -142,4 +155,44 @@
   </div>
 </div>
 </div>
+<style>
+  .stock-history-toolbar { display:flex;align-items:center;gap:10px; }
+  .stock-history-search { display:flex;align-items:center;gap:10px;flex:1;min-width:0; }
+  .stock-history-search .sgi-input-group { flex:1;min-width:180px; }
+  .stock-history-filter-dialog { position:fixed;inset:auto;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 32px);padding:0;border:1px solid var(--sgi-border);border-radius:14px;background:var(--sgi-card-bg,#fff);color:var(--sgi-text);box-shadow:0 16px 48px rgba(15,23,42,.25); }
+  .stock-history-filter-dialog::backdrop { background:rgba(15,23,42,.55);backdrop-filter:blur(2px); }
+  .stock-history-filter-form { max-height:calc(100vh - 32px);overflow-y:auto;padding:20px; }
+  .stock-history-filter-header { display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px; }
+  .stock-history-filter-header h2 { margin:0;font-size:19px; }
+  .stock-history-filter-header p { margin:5px 0 0;color:var(--sgi-text-muted);font-size:13px; }
+  .stock-history-filter-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px; }
+  .stock-history-filter-grid .sgi-form-group { margin:0; }
+  .stock-history-pair { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;grid-column:1/-1; }
+  .stock-history-check-group { min-width:0;min-height:150px;margin:0;padding:10px 12px;border:1px solid var(--sgi-border);border-radius:8px; }
+  .stock-history-check-group legend { padding:0 4px;font-size:12px;font-weight:600;color:var(--sgi-text-muted); }
+  .stock-history-check-group > div { display:flex;flex-direction:column;gap:7px;max-height:150px;overflow:auto; }
+  .stock-history-check-group label { display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer; }
+  .stock-history-filter-actions { display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px solid var(--sgi-border); }
+  @media(max-width:768px) {
+    .stock-history-toolbar { flex-direction:column;align-items:stretch; }
+    .stock-history-search { flex-wrap:wrap; }
+    .stock-history-search .sgi-input-group { flex:1 1 100%; }
+    .stock-history-search > button,.stock-history-toolbar > button { flex:1;justify-content:center; }
+    .stock-history-filter-form { padding:16px; }
+    .stock-history-filter-grid { grid-template-columns:minmax(0,1fr); }
+    .stock-history-pair { grid-template-columns:minmax(0,1fr); }
+    .stock-history-filter-actions { display:grid;grid-template-columns:1fr 1fr; }
+    .stock-history-filter-actions > * { justify-content:center; }
+    .stock-history-filter-actions > :last-child { grid-column:1/-1; }
+  }
+</style>
+<script>
+  (() => {
+    const dialog = document.getElementById('stockHistoryFilterDialog');
+    document.getElementById('openStockHistoryFilters')?.addEventListener('click', () => dialog?.showModal());
+    document.getElementById('closeStockHistoryFilters')?.addEventListener('click', () => dialog?.close());
+    document.getElementById('cancelStockHistoryFilters')?.addEventListener('click', () => dialog?.close());
+    dialog?.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  })();
+</script>
 {% endblock %}

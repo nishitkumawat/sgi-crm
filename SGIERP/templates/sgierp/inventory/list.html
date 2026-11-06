@@ -21,9 +21,7 @@
         <!-- <a href="{% url 'sgierp:item_groups' %}" class="btn-sgi btn-sgi-outline">
           <i class="bi bi-collection"></i> Groups
         </a> -->
-        <button onclick="exportTableToExcel('inventoryTable', 'inventory')" class="btn-sgi btn-sgi-outline">
-          <i class="bi bi-download"></i> Export
-        </button>
+        {% include 'sgierp/components/export_menu.html' with table_id='inventoryTable' filename='inventory' title='Inventory' %}
       </div>
       <div class="sgi-card-actions-primary">
         <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-primary">
@@ -81,6 +79,7 @@
             <th>Item Name</th>
             <th>Process</th>
             <th>Quantity</th>
+            <th>Price</th>
             <th>Assigned To</th>
             <th>Last Updated</th>
             <th style="width:140px;"></th>
@@ -107,6 +106,7 @@
             <td>
               <strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.item.unit }}
             </td>
+            <td>{{ entry.price|floatformat:2 }}</td>
             <td>
               {% if entry.assigned_to %}
               <span style="color:var(--sgi-primary);">{{ entry.assigned_to.name }}</span>
@@ -142,6 +142,7 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot><tr><th colspan="5">Total</th><th>{{ inventory_total_qty|floatformat:2 }}</th><th>{{ inventory_total_price|floatformat:2 }}</th><th colspan="3"></th></tr></tfoot>
       </table>
 
       {% else %}

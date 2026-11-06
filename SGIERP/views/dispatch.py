@@ -68,9 +68,14 @@ def dispatch_list(request):
         total_count = paginator.count
 
     machines = Machine.objects.filter(is_active=True).order_by('code')
+    units_total = sum(
+        d.machine_count if d.machine_id else sum((component.quantity_consumed for component in d.components.all()), 0)
+        for d in dispatches
+    )
 
     context = {
         'dispatches': dispatches,
+        'units_total': units_total,
         'page_obj': page_obj,
         'machines': machines,
         'search': search,
@@ -130,6 +135,11 @@ def dispatch_create(request):
                 })
         except Machine.DoesNotExist:
             pass
+    bom_preview_totals = {
+        'per_machine': sum((row['quantity_required_per_machine'] for row in bom_preview), 0),
+        'required': sum((row['total_required'] for row in bom_preview), 0),
+        'available': sum((row['available'] for row in bom_preview), 0),
+    }
     item_id = request.GET.get('item') or request.POST.get('item_id')
     if item_id:
         selected_item = Item.objects.filter(id=item_id, is_active=True).first()
@@ -170,6 +180,7 @@ def dispatch_create(request):
                 'machines': machines, 'selected_machine': selected_machine,
                 'completed_items': completed_items, 'selected_item': selected_item,
                 'bom_preview': bom_preview, 'machine_count': machine_count,
+                'bom_preview_totals': bom_preview_totals,
                 'form_data': request.POST, 'page_title': 'New Dispatch',
             })
 
@@ -203,6 +214,7 @@ def dispatch_create(request):
         'selected_item': selected_item,
         'selected_machine': selected_machine,
         'bom_preview': bom_preview,
+        'bom_preview_totals': bom_preview_totals,
         'machine_count': machine_count,
         'form_data': request.POST if request.method == 'POST' else request.GET,
         'now': timezone.now(),
@@ -228,6 +240,7 @@ def dispatch_detail(request, dispatch_id):
     context = {
         'dispatch': dispatch,
         'components': dispatch.components.all(),
+        'components_quantity_total': dispatch.components.aggregate(total=Sum('quantity_consumed'))['total'] or 0,
         'blank_rows': range(blank_rows),
         'page_title': f'Dispatch #{dispatch.id}',
     }

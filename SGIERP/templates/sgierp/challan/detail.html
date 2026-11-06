@@ -120,6 +120,7 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot><tr><th colspan="2">Total Quantity</th><th>{{ items_quantity_total|floatformat:2 }}</th><th></th></tr></tfoot>
       </table>
       {% else %}
       <div class="sgi-empty" style="padding:30px;">

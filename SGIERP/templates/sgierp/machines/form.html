@@ -135,6 +135,7 @@
         <table class="bom-table machine-edit-bom-table" style="width:100%;">
           <thead><tr><th style="width:36px;">#</th><th>Item (type to search)</th><th style="width:120px;">Qty / Machine</th><th style="width:40px;"></th></tr></thead>
           <tbody id="bomTableBody"></tbody>
+          <tfoot><tr><th colspan="2" style="text-align:right;">Total / Machine</th><th id="bomQuantityTotal">0.00</th><th></th></tr></tfoot>
         </table>
         <div id="bomPagination" data-default-per-page="{{ default_per_page }}"></div>
         <input type="hidden" name="bom_data" id="bomData" value="{{ bom_json }}">

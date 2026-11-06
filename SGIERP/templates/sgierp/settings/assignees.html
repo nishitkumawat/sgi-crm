@@ -16,9 +16,7 @@
     </div>
     <div class="sgi-card-actions">
       <div class="sgi-card-actions-row">
-        <button onclick="exportTableToExcel('assigneesTable', 'assignees')" class="btn-sgi btn-sgi-outline btn-sgi-sm">
-          <i class="bi bi-download"></i> Export
-        </button>
+        {% include 'sgierp/components/export_menu.html' with table_id='assigneesTable' filename='assignees' title='Assignees' small=True %}
       </div>
       {% if sgi_profile.role == 'admin' %}
       <a href="{% url 'sgierp:assignee_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">

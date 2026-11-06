@@ -31,9 +31,7 @@
       </div>
       <div class="sgi-card-actions">
         <div class="sgi-card-actions-row">
-          <button onclick="exportTableToExcel('completedTable', 'completed_stock')" class="btn-sgi btn-sgi-outline">
-            <i class="bi bi-download"></i> Export
-          </button>
+          {% include 'sgierp/components/export_menu.html' with table_id='completedTable' filename='completed_stock' title='Completed Stock' %}
         </div>
         <div class="sgi-card-actions-primary">
           <a href="{% url 'sgierp:stock_move' %}" class="btn-sgi btn-sgi-primary">
@@ -71,6 +69,7 @@
               <th>Item Name</th>
               <th>Process</th>
               <th>Qty Available</th>
+              <th>Price</th>
               <th></th>
             </tr>
           </thead>
@@ -81,6 +80,7 @@
               <td>{{ entry.item.name }}</td>
               <td><span class="sgi-badge sgi-badge-green">{{ completed_process.name }}</span></td>
               <td><strong>{{ entry.total|floatformat:2 }}</strong> <span style="color:var(--sgi-text-muted);">{{ entry.item.unit }}</span></td>
+              <td>{{ entry.price|floatformat:2 }}</td>
               <td>
                 <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}&process={{ completed_process.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move back to another process" aria-label="Move {{ entry.item.code }} back to another process">
                   <i class="bi bi-arrow-left-right"></i>
@@ -92,6 +92,7 @@
             </tr>
             {% endfor %}
           </tbody>
+          <tfoot><tr><th colspan="3">Total</th><th>{{ total_qty|floatformat:2 }}</th><th>{{ total_price|floatformat:2 }}</th><th></th></tr></tfoot>
         </table>
         {% else %}
         <div class="sgi-empty">

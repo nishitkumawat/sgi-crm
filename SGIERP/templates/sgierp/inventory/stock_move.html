@@ -239,6 +239,14 @@
 
     <!-- Notes -->
     <div class="sgi-form-group">
+      <label class="sgi-label" for="price"><i class="bi bi-currency-rupee"></i> Price (per unit)</label>
+      <div class="sgi-input-group"><span class="sgi-input-icon">₹</span>
+        <input type="number" class="sgi-input" id="price" name="price" min="0" step="0.01" value="{{ form_data.price|default:'0' }}" placeholder="0">
+      </div>
+      <small style="color:var(--sgi-text-muted);">Optional. Leave empty to use 0.</small>
+    </div>
+
+    <div class="sgi-form-group">
       <label class="sgi-label" for="notes">
         <i class="bi bi-chat-text"></i> Notes
       </label>

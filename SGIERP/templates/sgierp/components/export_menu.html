@@ -1,0 +1,18 @@
+<details class="export-menu">
+  <summary class="btn-sgi btn-sgi-outline{% if small %} btn-sgi-sm{% endif %}">
+    <i class="bi bi-download"></i> Export <i class="bi bi-chevron-down" aria-hidden="true"></i>
+  </summary>
+  <div class="export-menu-options" role="menu">
+    {% if excel_href %}
+    <a role="menuitem" href="{{ excel_href }}" download class="export-menu-option"><i class="bi bi-file-earmark-spreadsheet"></i> Download Excel</a>
+    {% else %}
+    <button role="menuitem" type="button" class="export-menu-option" onclick="exportTableToExcel('{{ table_id }}', '{{ filename }}')"><i class="bi bi-file-earmark-spreadsheet"></i> Download Excel</button>
+    {% endif %}
+    {% if pdf_href %}
+    <a role="menuitem" href="{{ pdf_href }}{% if catalog_filters %}?q={{ search|urlencode }}&category={{ category_filter|urlencode }}&status={{ status_filter|urlencode }}{% endif %}" download class="export-menu-option"><i class="bi bi-file-earmark-pdf"></i> Download PDF</a>
+    {% else %}
+    <button role="menuitem" type="button" class="export-menu-option" data-export-pdf data-table-id="{{ table_id }}" data-filename="{{ filename }}" data-title="{{ title }}" data-pdf-url="{% url 'sgierp:table_pdf_export' %}"><i class="bi bi-file-earmark-pdf"></i> Download PDF</button>
+    {% endif %}
+  </div>
+</details>
+<form hidden aria-hidden="true">{% csrf_token %}</form>

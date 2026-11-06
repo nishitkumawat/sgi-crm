@@ -68,6 +68,7 @@
         <tr>
           <th>Process</th>
           <th>Quantity</th>
+          <th>Price</th>
           <th>Assigned To</th>
           <th>Assigned At</th>
           <th></th>
@@ -82,6 +83,7 @@
             </span>
           </td>
           <td><strong>{{ ps.total|floatformat:2 }}</strong> {{ item.unit }}</td>
+          <td>{{ ps.price|floatformat:2 }}</td>
           <td>
             {% if ps.assigned_to %}
             {{ ps.assigned_to }}
@@ -103,6 +105,7 @@
           </td>
         </tr>
         {% endfor %}
+        <tr><th>Total</th><th>{{ process_stock_total|floatformat:2 }} {{ item.unit }}</th><th>{{ process_stock_price_total|floatformat:2 }}</th><th colspan="3"></th></tr>
       </tbody>
     </table>
     {% else %}
@@ -116,23 +119,34 @@
 </div>
 
 <!-- Item History -->
-<div class="sgi-card">
+<div class="sgi-card history-page-card">
   <div class="sgi-card-header">
     <div class="sgi-card-title">
       <div class="card-icon"><i class="bi bi-clock-history"></i></div>
       Stock History
     </div>
   </div>
-  <div class="sgi-table-wrap">
+  <div class="filters-bar"><form method="GET" class="filter-form" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <input class="sgi-input" type="date" name="date_from" value="{{ history_filters.date_from }}" aria-label="From date"><input class="sgi-input" type="date" name="date_to" value="{{ history_filters.date_to }}" aria-label="To date">
+    <select class="sgi-select" name="from_process"><option value="">Any source process</option>{% for p in processes %}<option value="{{ p.id }}" {% if history_filters.from_process == p.id|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+    <select class="sgi-select" name="to_process"><option value="">Any destination process</option>{% for p in processes %}<option value="{{ p.id }}" {% if history_filters.to_process == p.id|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+    <select class="sgi-select" name="from_assignee"><option value="">Any source assignee</option>{% for a in assignees %}<option value="{{ a.id }}" {% if history_filters.from_assignee == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
+    <select class="sgi-select" name="to_assignee"><option value="">Any destination assignee</option>{% for a in assignees %}<option value="{{ a.id }}" {% if history_filters.to_assignee == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
+    <button class="btn-sgi btn-sgi-primary" type="submit">Filter</button>
+  </form></div>
+  <div class="sgi-table-wrap history-responsive-wrap">
     {% if item_history %}
-    <table class="sgi-table">
+    <table class="sgi-table history-responsive-table item-history-table">
       <thead>
         <tr>
           <th>Date</th>
           <th>Type</th>
           <th>From</th>
+          <th></th>
           <th>To</th>
           <th>Quantity</th>
+          <th>Price</th>
           <th>By</th>
           <th>Description</th>
         </tr>
@@ -164,6 +178,7 @@
             <br><small>{{ h.item_code_snapshot }} {{ h.quantity|floatformat:2 }} {{ h.unit_snapshot }}</small>
             {% endif %}
           </td>
+          <td class="history-flow-arrow" aria-label="to">→</td>
           <td>
             {% if h.to_process %}
             {{ h.to_process_name }}
@@ -174,6 +189,7 @@
             {% endif %}
           </td>
           <td><strong>{{ h.quantity|floatformat:2 }}</strong> {{ h.unit_snapshot }}</td>
+          <td>{{ h.price|floatformat:2 }}</td>
           <td>
             {% if h.performed_by %}
             {{ h.performed_by.get_full_name|default:h.performed_by.username }}
@@ -191,6 +207,7 @@
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot><tr><th colspan="5">Total</th><th>{{ item_history_totals.quantity|default:0|floatformat:2 }}</th><th>{{ item_history_totals.price|default:0|floatformat:2 }}</th><th colspan="2"></th></tr></tfoot>
     </table>
     {% else %}
     <div class="sgi-empty">

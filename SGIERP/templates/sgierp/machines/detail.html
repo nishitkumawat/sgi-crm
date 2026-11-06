@@ -44,6 +44,9 @@
     .machine-bom-view-table td::before,.machine-dispatch-table td::before { content:attr(data-label);flex:0 0 38%;max-width:130px;color:var(--sgi-text-muted);font-size:11px;font-weight:600; }
     .machine-bom-view-table td:nth-child(1) { display:none; }
     .machine-bom-view-table td:nth-child(2) img,.machine-bom-view-table td:nth-child(2) span { width:36px!important;height:36px!important; }
+    .machine-bom-view-table tfoot { display:block;width:100%; }
+    .machine-bom-view-table tfoot tr { display:flex;align-items:center;flex-wrap:wrap;gap:4px; }
+    .machine-bom-view-table tfoot th { display:block;padding:6px 3px!important;white-space:normal; }
     .machine-dispatch-table td:last-child { justify-content:flex-end; }
     .machine-dispatch-table td:last-child::before { content:''; }
     .machine-bom-wrap + .pagination-container { flex-direction:column;align-items:stretch; }
@@ -99,9 +102,8 @@
       <div class="card-icon"><i class="bi bi-list-ul"></i></div>
       Bill of Materials ({{ total_count }} components)
     </div>
-    <a href="{% url 'sgierp:machine_bom_export' machine.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm no-loader">
-      <i class="bi bi-download"></i> Download Excel
-    </a>
+    {% url 'sgierp:machine_bom_export' machine.id as bom_excel_url %}
+    {% include 'sgierp/components/export_menu.html' with table_id='machineBomTable' filename=machine.code|add:'_BOM' title='BOM '|add:machine.code excel_href=bom_excel_url small=True %}
   </div>
   <div class="filters-bar">
     <form method="GET" class="filter-form" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -116,7 +118,7 @@
   </div>
   <div class="sgi-table-wrap machine-bom-wrap">
     {% if enriched_bom %}
-    <table class="bom-table machine-bom-view-table" style="width:100%;">
+    <table class="bom-table machine-bom-view-table" id="machineBomTable" style="width:100%;">
       <thead>
         <tr>
           <th>#</th>
@@ -165,6 +167,7 @@
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot><tr><th colspan="3">Total</th><th>{{ bom_quantity_total|floatformat:2 }}</th><th>{{ available_completed_total|floatformat:2 }}</th><th colspan="2"></th></tr></tfoot>
     </table>
     {% else %}
     <div class="sgi-empty" style="padding:30px;">
@@ -248,6 +251,7 @@
         </tr>
         {% endfor %}
       </tbody>
+        <tfoot><tr><th colspan="2">Total Units</th><th>{{ dispatch_total_count }}</th><th colspan="4"></th></tr></tfoot>
     </table>
     {% else %}
     <div class="sgi-empty" style="padding:30px;">

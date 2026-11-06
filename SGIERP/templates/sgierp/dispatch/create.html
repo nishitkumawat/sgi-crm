@@ -124,6 +124,7 @@
             </tr>
             {% endfor %}
           </tbody>
+          <tfoot><tr><th>Total</th><th>{{ bom_preview_totals.per_machine|floatformat:2 }}</th><th>{{ bom_preview_totals.required|floatformat:2 }}</th><th>{{ bom_preview_totals.available|floatformat:2 }}</th><th></th></tr></tfoot>
         </table>
       </div>
     </div>

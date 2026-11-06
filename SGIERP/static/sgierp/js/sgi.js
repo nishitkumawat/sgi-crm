@@ -156,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Show loader on form submissions
   document.querySelectorAll('form').forEach(form => {
     form.addEventListener('submit', function(e) {
+      if (e.defaultPrevented) return;
       showPageLoader();
     });
   });
@@ -357,6 +358,7 @@ function initBomEditor() {
 
   let bomRows = [];
   try { bomRows = JSON.parse(bomDataInput.value || '[]'); } catch(e) {}
+  const bomQuantityTotal = document.getElementById('bomQuantityTotal');
   let bomSearchQuery = '';
 
   function getFilteredBomRows() {
@@ -498,6 +500,10 @@ function initBomEditor() {
   function renderRows(showLoading = true) {
     const render = () => {
     bomContainer.innerHTML = '';
+    if (bomQuantityTotal) {
+      bomQuantityTotal.textContent = bomRows.filter(row => row.item_id)
+        .reduce((total, row) => total + (Number(row.quantity) || 0), 0).toFixed(2);
+    }
     updateBomPagination();
     if (bomRows.length === 0) {
       bomContainer.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:20px;text-align:center;">No components added yet. Click "Add Component".</td></tr>';
@@ -632,6 +638,8 @@ function initBomEditor() {
       inp.addEventListener('input', function() {
         const idx = +this.dataset.idx;
         bomRows[idx].quantity = parseFloat(this.value) || 0;
+        if (bomQuantityTotal) bomQuantityTotal.textContent = bomRows.filter(row => row.item_id)
+          .reduce((total, row) => total + (Number(row.quantity) || 0), 0).toFixed(2);
         syncBomData();
       });
     });
@@ -774,13 +782,47 @@ function exportTableToExcel(tableId, filename) {
   if (!table) return;
 
   let csv = [];
+  const expandMovement = Boolean(table.querySelector('tbody .history-party'));
   const rows = table.querySelectorAll('tr');
 
   for (let i = 0; i < rows.length; i++) {
-    const row = [], cols = rows[i].querySelectorAll('td, th');
+    let cols = [...rows[i].querySelectorAll('td, th')];
+    let values = cols.map(cell => cell.innerText.replace(/(\r\n|\n|\r)/gm, ' ').replace(/\s+/g, ' ').trim());
 
-    for (let j = 0; j < cols.length; j++) {
-      let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/"/g, '""');
+    if (expandMovement && rows[i].closest('thead')) {
+      const fromIndex = cols.findIndex(cell => cell.classList.contains('history-from-cell'));
+      const arrowIndex = cols.findIndex(cell => cell.classList.contains('history-flow-arrow'));
+      const toIndex = cols.findIndex(cell => cell.classList.contains('history-to-cell'));
+      if (fromIndex >= 0 && arrowIndex >= 0 && toIndex >= 0) {
+        values.splice(fromIndex, toIndex - fromIndex + 1, 'From Process', 'To Process');
+        const priceIndex = values.findIndex(value => value.toLowerCase() === 'price');
+        if (priceIndex >= 0) values.splice(priceIndex + 1, 0, 'From Assignee', 'To Assignee');
+      }
+    } else if (expandMovement && rows[i].closest('tbody')) {
+      const fromIndex = cols.findIndex(cell => cell.classList.contains('history-from-cell'));
+      const arrowIndex = cols.findIndex(cell => cell.classList.contains('history-flow-arrow'));
+      const toIndex = cols.findIndex(cell => cell.classList.contains('history-to-cell'));
+      if (fromIndex >= 0 && arrowIndex >= 0 && toIndex >= 0) {
+        const partyValues = cell => [...cell.querySelectorAll('.history-party > span')].map(part => {
+          const label = part.querySelector('small');
+          return [...part.childNodes].filter(node => node !== label).map(node => node.textContent).join('').trim();
+        });
+        const fromValues = partyValues(cols[fromIndex]);
+        const toValues = partyValues(cols[toIndex]);
+        const processFrom = fromValues[0] || '—';
+        const assigneeFrom = fromValues[1] || '—';
+        const processTo = toValues[0] || '—';
+        const assigneeTo = toValues[1] || '—';
+        values.splice(fromIndex, toIndex - fromIndex + 1, processFrom, processTo);
+        // Keep the original columns in their order, inserting assignees after Price.
+        const priceIndex = values.findIndex(value => value.toLowerCase() === 'price');
+        values.splice(priceIndex >= 0 ? priceIndex + 1 : fromIndex + 2, 0, assigneeFrom, assigneeTo);
+      }
+    }
+
+    const row = [];
+    for (let j = 0; j < values.length; j++) {
+      let data = values[j].replace(/"/g, '""');
       data = '"' + data + '"';
       row.push(data);
     }
@@ -795,5 +837,81 @@ function exportTableToExcel(tableId, filename) {
   document.body.appendChild(downloadLink);
   downloadLink.click();
   document.body.removeChild(downloadLink);
+  window.setTimeout(() => window.URL.revokeObjectURL(downloadLink.href), 1000);
 }
+
+document.addEventListener('click', async function(event) {
+  const pdfButton = event.target.closest('[data-export-pdf]');
+  if (pdfButton) {
+    const table = document.getElementById(pdfButton.dataset.tableId);
+    if (!table) { window.alert('The table could not be found.'); return; }
+    const headerRow = table.querySelector('thead tr');
+    const headers = [...(headerRow?.querySelectorAll('th,td') || [])].map(cell => cell.innerText.trim());
+    const rows = [...table.querySelectorAll('tbody tr')].map(row => [...row.querySelectorAll('th,td')].map(cell => {
+      const value = cell.innerText.trim();
+      const image = cell.querySelector('img.history-export-image');
+      if (image && image.complete && image.naturalWidth) {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 72; canvas.height = 72;
+          canvas.getContext('2d').drawImage(image, 0, 0, 72, 72);
+          return { text: value, image: canvas.toDataURL('image/jpeg', 0.78) };
+        } catch (_) {}
+      }
+      if (value) return value;
+      return [...cell.querySelectorAll('img[alt]')].map(image => image.alt).filter(Boolean).join(' ');
+    }));
+    table.querySelectorAll('tfoot tr').forEach(row => rows.push([...row.querySelectorAll('th,td')].map(cell => cell.innerText.trim())));
+    const token = pdfButton.closest('.export-menu')?.nextElementSibling?.querySelector('[name=csrfmiddlewaretoken]')?.value
+      || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    pdfButton.disabled = true;
+    try {
+      const response = await fetch(pdfButton.dataset.pdfUrl, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token || '' },
+        body: JSON.stringify({ headers, rows, title: pdfButton.dataset.title, filename: pdfButton.dataset.filename }),
+      });
+      if (!response.ok) {
+        let message = 'PDF export failed.';
+        try { message = (await response.json()).error || message; } catch (_) {}
+        throw new Error(message);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `${pdfButton.dataset.filename || 'export'}.pdf`;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      window.alert(error.message || 'PDF export failed.');
+    } finally {
+      pdfButton.disabled = false;
+      pdfButton.closest('details')?.removeAttribute('open');
+    }
+    return;
+  }
+
+  if (!event.target.closest('.export-menu')) {
+    document.querySelectorAll('.export-menu[open]').forEach(menu => menu.removeAttribute('open'));
+  }
+});
+
+document.addEventListener('toggle', function(event) {
+  if (event.target.matches('.export-menu[open]')) {
+    document.querySelectorAll('.export-menu[open]').forEach(menu => { if (menu !== event.target) menu.removeAttribute('open'); });
+    const summary = event.target.querySelector('summary');
+    const options = event.target.querySelector('.export-menu-options');
+    if (summary && options) {
+      requestAnimationFrame(() => {
+        const rect = summary.getBoundingClientRect();
+        const menuRect = options.getBoundingClientRect();
+        const left = Math.max(8, Math.min(rect.right - menuRect.width, window.innerWidth - menuRect.width - 8));
+        const below = rect.bottom + 6;
+        const top = below + menuRect.height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - menuRect.height - 6);
+        options.style.left = `${left}px`;
+        options.style.top = `${top}px`;
+      });
+    }
+  }
+}, true);
 

@@ -202,6 +202,7 @@
         {% for i in blank_rows %}
         <tr><td></td><td></td><td></td><td></td><td></td></tr>
         {% endfor %}
+        <tr><th colspan="3">Total Quantity</th><th>{{ items_quantity_total|floatformat:2 }}</th><th></th></tr>
       </tbody>
     </table>
 

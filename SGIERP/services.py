@@ -30,7 +30,7 @@ def get_rejected_process():
 # INITIAL STOCK ENTRY
 # ============================================================
 @transaction.atomic
-def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', performed_by=None, moved_at=None):
+def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', performed_by=None, moved_at=None, price=0):
     """
     Add initial stock for an item in a given process.
     Creates or updates the ItemProcess record.
@@ -44,17 +44,18 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
     entry, created = ItemProcess.objects.get_or_create(
         item=item,
         process=process,
-        defaults={'quantity': quantity, 'assigned_to': assigned_to}
+        defaults={'quantity': quantity, 'assigned_to': assigned_to, 'price': price or 0}
     )
     if not created:
         entry.quantity = F('quantity') + quantity
+        entry.price = price or 0
         if is_terminal_process:
             entry.assigned_to = None
             entry.assigned_at = None
         elif assigned_to:
             entry.assigned_to = assigned_to
             entry.assigned_at = timezone.now()
-        entry.save(update_fields=['quantity', 'assigned_to', 'assigned_at', 'updated_at'])
+        entry.save(update_fields=['quantity', 'price', 'assigned_to', 'assigned_at', 'updated_at'])
         entry.refresh_from_db()
     
     # Record history
@@ -63,6 +64,7 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
         from_process=None,  # No source for initial stock
         to_process=process,
         quantity=quantity,
+        price=price or 0,
         movement_type='initial',
         from_assignee=None,
         to_assignee=assigned_to,
@@ -84,7 +86,7 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
 # ITEM CONVERSION
 # ============================================================
 @transaction.atomic
-def convert_item(source_item, target_item, source_process, target_process, source_quantity, target_quantity, assigned_to=None, remarks='', performed_by=None):
+def convert_item(source_item, target_item, source_process, target_process, source_quantity, target_quantity, assigned_to=None, remarks='', performed_by=None, price=0):
     """
     Convert one item to another (e.g., 55kg die → 2 shafts).
     Reduces source item quantity and adds target item quantity (optionally in a different process).
@@ -120,13 +122,14 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
     
     # Add target quantity
     target_entry.quantity = F('quantity') + target_quantity
+    target_entry.price = price or 0
     if is_terminal_process:
         target_entry.assigned_to = None
         target_entry.assigned_at = None
     elif assigned_to:
         target_entry.assigned_to = assigned_to
         target_entry.assigned_at = timezone.now()
-    target_entry.save(update_fields=['quantity', 'assigned_to', 'assigned_at', 'updated_at'])
+    target_entry.save(update_fields=['quantity', 'price', 'assigned_to', 'assigned_at', 'updated_at'])
     target_entry.refresh_from_db()
     
     # Record conversion history
@@ -136,6 +139,7 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
         from_process=source_process,
         to_process=target_process,
         quantity=source_quantity,
+        price=price or 0,
         movement_type='convert',
         from_assignee=None,
         to_assignee=assigned_to,
@@ -160,7 +164,7 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
 # ============================================================
 @transaction.atomic
 def move_stock(item_id, source_process_id, destination_process_id, quantity, assigned_to=None,
-               remarks='', performed_by=None):
+               remarks='', performed_by=None, price=0):
     """
     Move `quantity` units from source_process to destination_process for an item.
 
@@ -214,16 +218,17 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
     dest_entry, _ = ItemProcess.objects.get_or_create(
         item=item,
         process=dest_process,
-        defaults={'quantity': 0, 'assigned_to': assigned_to}
+        defaults={'quantity': 0, 'assigned_to': assigned_to, 'price': price or 0}
     )
     dest_entry.quantity = F('quantity') + quantity
+    dest_entry.price = price or 0
     if is_terminal_destination:
         dest_entry.assigned_to = None
         dest_entry.assigned_at = None
     elif assigned_to:
         dest_entry.assigned_to = assigned_to
         dest_entry.assigned_at = timezone.now()
-    dest_entry.save(update_fields=['quantity', 'assigned_to', 'assigned_at', 'updated_at'])
+    dest_entry.save(update_fields=['quantity', 'price', 'assigned_to', 'assigned_at', 'updated_at'])
     dest_entry.refresh_from_db()
 
     # Record history
@@ -232,6 +237,7 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
         from_process=source_process,
         to_process=dest_process,
         quantity=quantity,
+        price=price or 0,
         movement_type='move',
         from_assignee=source_assignee,
         to_assignee=assigned_to,
