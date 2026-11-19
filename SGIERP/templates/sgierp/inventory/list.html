@@ -97,7 +97,7 @@
               {% endif %}
             </td>
             <td><span class="fw-600">{{ entry.item.code }}</span></td>
-            <td>{{ entry.item.name }}</td>
+            <td><a href="{% url 'sgierp:item_detail' entry.item.id %}" class="fw-600" style="color:var(--sgi-primary);text-decoration:none;" title="View Item">{{ entry.item.name }}</a></td>
             <td>
               <span class="sgi-badge {% if entry.process.is_completed_process %}sgi-badge-green{% elif entry.process.is_rejected_process %}sgi-badge-red{% else %}sgi-badge-orange{% endif %}" style="font-size:11px;">
                 {{ entry.process.name }}
@@ -123,13 +123,23 @@
               {% endif %}
             </td>
             <td>
-              <div style="display:flex;gap:8px;">
-                <a href="{% url 'sgierp:item_detail' entry.item.id %}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="View">
-                  <i class="bi bi-eye"></i>
-                </a>
+              <div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center;">
                 <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move Stock">
                   <i class="bi bi-arrow-right-circle"></i>
                 </a>
+                {% if entry.assigned_to and entry.assigned_to.phone %}
+                <a href="#"
+                   class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm wa-remind-btn"
+                   style="color:#25D366;"
+                   title="Send WhatsApp Reminder"
+                   data-phone="{{ entry.assigned_to.phone }}"
+                   data-name="{{ entry.assigned_to.name }}"
+                   data-item="{{ entry.item.name }}"
+                   data-qty="{{ entry.quantity|floatformat:2 }} {{ entry.item.unit }}"
+                   data-since="{{ entry.assigned_at|default:entry.updated_at|timesince }}">
+                  <i class="bi bi-whatsapp"></i>
+                </a>
+                {% endif %}
                 <form method="POST" action="{% url 'sgierp:inventory_entry_delete' entry.id %}" data-delete-action data-delete-confirm="Delete this inventory entry? Related history will also be removed." style="display:inline;margin:0;">
                   {% csrf_token %}
                   <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" style="color:var(--sgi-danger);" title="Delete Entry" aria-label="Delete inventory entry">
@@ -168,4 +178,40 @@
   </div>
 </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.wa-remind-btn').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+
+    var rawPhone = btn.dataset.phone.trim().replace(/[\s\-().]/g, '');
+    // Normalize to international format (assume India +91 if no country code)
+    var phone = rawPhone;
+    if (phone.startsWith('0')) {
+      phone = '91' + phone.slice(1);
+    } else if (phone.startsWith('+')) {
+      phone = phone.slice(1);
+    } else if (phone.length === 10) {
+      phone = '91' + phone;
+    }
+
+    var name   = btn.dataset.name;
+    var item   = btn.dataset.item;
+    var qty    = btn.dataset.qty;
+    var since  = btn.dataset.since;  // e.g. "12\u00a0days, 11\u00a0hours"
+
+    var msg =
+      "Greetings from Shree Gayatri Industries!\n\n" +
+      "Dear " + name + ",\n\n" +
+      "We have sent you *" + item + "* (Qty: *" + qty + "*) and it has been with you for *" + since + "* now.\n\n" +
+      "We kindly request you to please try to complete the order/work as soon as possible.\n\n" +
+      "Thank you 🙏";
+
+    var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+    window.open(url, '_blank');
+  });
+});
+</script>
 {% endblock %}

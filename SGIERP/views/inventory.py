@@ -14,6 +14,7 @@ from PIL import Image
 import io
 import json
 import re
+from datetime import datetime, time as dt_time
 
 from SGIERP.decorators import sgi_login_required, sgi_admin_required, sgi_delete_passcode_required, get_sgi_user
 from SGIERP.models import Item, Machine, Process, ItemProcess, Assignee, StockHistory, ERPConfig
@@ -1342,8 +1343,20 @@ def stock_history(request):
 
     if movement_type:
         history_qs = history_qs.filter(movement_type=movement_type)
-    for key, lookup in [('date_from', 'created_at__date__gte'), ('date_to', 'created_at__date__lte')]:
-        if history_filters[key]: history_qs = history_qs.filter(**{lookup: history_filters[key]})
+    if history_filters['date_from']:
+        try:
+            dt_from = datetime.strptime(history_filters['date_from'], '%Y-%m-%d')
+            dt_from = timezone.make_aware(datetime.combine(dt_from, dt_time.min))
+            history_qs = history_qs.filter(created_at__gte=dt_from)
+        except (ValueError, TypeError):
+            pass
+    if history_filters['date_to']:
+        try:
+            dt_to = datetime.strptime(history_filters['date_to'], '%Y-%m-%d')
+            dt_to = timezone.make_aware(datetime.combine(dt_to, dt_time.max))
+            history_qs = history_qs.filter(created_at__lte=dt_to)
+        except (ValueError, TypeError):
+            pass
     for key, lookup in [('from_process', 'from_process_id__in'), ('to_process', 'to_process_id__in'), ('from_assignee', 'from_assignee_id__in'), ('to_assignee', 'to_assignee_id__in')]:
         selected_ids = [value for value in history_filters[key] if value.isdigit()]
         if selected_ids: history_qs = history_qs.filter(**{lookup: selected_ids})
