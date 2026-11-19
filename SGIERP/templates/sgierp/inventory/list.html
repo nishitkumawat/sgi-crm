@@ -115,10 +115,9 @@
               {% endif %}
             </td>
             <td>
-              {% if entry.assigned_at %}
-              <div style="font-size:12px;">{{ entry.assigned_at|time:"h:i A" }} {{ entry.assigned_at|date:"d M Y" }}</div>
-              <div style="font-size:11px;color:var(--sgi-text-muted);"></div>
-              <div style="font-size:10px;color:var(--sgi-text-muted);">{{ entry.assigned_at|timesince }} ago</div>
+              {% if entry.updated_at %}
+              <div style="font-size:12px;">{{ entry.updated_at|time:"h:i A" }} {{ entry.updated_at|date:"d M Y" }}</div>
+              <div style="font-size:10px;color:var(--sgi-text-muted);">{{ entry.updated_at|timesince }} ago</div>
               {% else %}
               <span class="text-muted">—</span>
               {% endif %}
