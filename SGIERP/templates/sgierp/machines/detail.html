@@ -188,7 +188,12 @@
 <div class="sgi-card" style="margin-bottom:20px;">
   <div class="sgi-card-body" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
     <div style="flex:1;min-width:220px;">
-      <div style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:8px;">One Dispatch completed: {% if dispatch_readiness_percent is not None %}{{ dispatch_readiness_percent|floatformat:0 }}%{% else %}—{% endif %} to 100%</div>
+      <div style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:8px;">
+        One Dispatch completed: {% if dispatch_readiness_percent is not None %}{{ dispatch_readiness_percent|floatformat:"-1" }}%{% else %}—{% endif %} to 100%
+        {% if dispatch_readiness_percent is not None and total_parts_required > 0 %}
+        <span style="font-size:12px;color:var(--sgi-text-muted);">({{ completed_parts_count|floatformat:"-2" }} / {{ total_parts_required|floatformat:"-2" }} parts)</span>
+        {% endif %}
+      </div>
       {% if dispatch_readiness_percent is not None %}
       <div role="progressbar" aria-label="One dispatch material readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ dispatch_readiness_percent|floatformat:0 }}" style="height:10px;background:var(--sgi-border);border-radius:999px;overflow:hidden;">
         <div style="height:100%;width:{{ dispatch_readiness_percent }}%;max-width:100%;background:{% if dispatch_readiness_percent >= 100 %}var(--sgi-success){% else %}var(--sgi-primary){% endif %};border-radius:999px;"></div>

@@ -845,11 +845,21 @@ document.addEventListener('click', async function(event) {
   if (pdfButton) {
     const table = document.getElementById(pdfButton.dataset.tableId);
     if (!table) { window.alert('The table could not be found.'); return; }
+    const exportImages = [...table.querySelectorAll('img.history-export-image, img.item-image-thumb')];
+    await Promise.all(exportImages.map(image => {
+      image.loading = 'eager';
+      if (image.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        image.addEventListener('load', resolve, { once: true });
+        image.addEventListener('error', resolve, { once: true });
+        window.setTimeout(resolve, 2000);
+      });
+    }));
     const headerRow = table.querySelector('thead tr');
     const headers = [...(headerRow?.querySelectorAll('th,td') || [])].map(cell => cell.innerText.trim());
     const rows = [...table.querySelectorAll('tbody tr')].map(row => [...row.querySelectorAll('th,td')].map(cell => {
       const value = cell.innerText.trim();
-      const image = cell.querySelector('img.history-export-image');
+      const image = cell.querySelector('img.history-export-image, img.item-image-thumb');
       if (image && image.complete && image.naturalWidth) {
         try {
           const canvas = document.createElement('canvas');

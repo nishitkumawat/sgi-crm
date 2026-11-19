@@ -29,7 +29,7 @@
     <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
       <div class="sgi-input-group" style="flex:1;min-width:220px;">
         <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
-        <input type="text" class="sgi-input" name="q" value="{{ search }}" placeholder="Search assignee, department or phone..." style="border:none;">
+        <input type="text" class="sgi-input" name="q" value="{{ search }}" placeholder="Search assignee, description or phone..." style="border:none;">
       </div>
       <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-search"></i> Search</button>
       {% if search %}<a href="{% url 'sgierp:settings_assignees' %}" class="btn-sgi btn-sgi-outline"><i class="bi bi-x"></i> Clear</a>{% endif %}
@@ -41,7 +41,8 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>Department</th>
+          <th>Phone</th>
+          <th>Description</th>
           <th>Status</th>
           <th>Created By</th>
           <th></th>
@@ -51,6 +52,13 @@
         {% for a in assignees %}
         <tr>
           <td><strong>{{ a.name }}</strong></td>
+          <td>
+            {% if a.phone %}
+            <a href="tel:{{ a.phone }}" style="color:var(--sgi-text);font-family:monospace;"><i class="bi bi-telephone"></i> {{ a.phone }}</a>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
           <td>
             {% if a.department %}
             <span class="sgi-badge sgi-badge-blue">{{ a.department }}</span>

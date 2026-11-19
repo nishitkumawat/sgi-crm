@@ -54,11 +54,99 @@ def table_pdf_export(request):
     from xml.sax.saxutils import escape
     import base64
     from reportlab.platypus import Image as PdfImage
+    from reportlab.lib.utils import ImageReader, simpleSplit
+    from reportlab.pdfgen import canvas
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, TableStyle
+
+    image_rows = any(isinstance(value, dict) and value.get('image') for row in clean_rows for value in row)
+    if image_rows:
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+        pdf = canvas.Canvas(response, pagesize=A4, pageCompression=1)
+        page_width, page_height = A4
+        margin = 24
+        header_bottom = page_height - 55
+        cell_width = (page_width - 2 * margin) / 4
+        cell_height = (header_bottom - 22) / 5
+        skip_headers = {'created by', 'active', 'inactive', 'status', 'created', 'created date', 'date created'}
+
+        for page_index in range(max(1, (len(clean_rows) + 19) // 20)):
+            page_rows = clean_rows[page_index * 20:(page_index + 1) * 20]
+            pdf.setFillColorRGB(.09, .16, .28)
+            pdf.setFont('Helvetica-Bold', 15)
+            pdf.drawString(margin, page_height - 29, title[:44])
+            pdf.setFillColorRGB(.36, .41, .48)
+            pdf.setFont('Helvetica', 8.5)
+            pdf.drawRightString(page_width - margin, page_height - 28, 'A4 | 20 items per page')
+
+            for index, row in enumerate(page_rows):
+                grid_row, column = divmod(index, 4)
+                x = margin + column * cell_width
+                y = header_bottom - (grid_row + 1) * cell_height
+                pdf.setStrokeColorRGB(.82, .85, .88)
+                pdf.setLineWidth(.55)
+                pdf.roundRect(x + 2, y + 2, cell_width - 4, cell_height - 4, 3, stroke=1, fill=0)
+                image_value = next((value for value in row if isinstance(value, dict) and value.get('image')), None)
+                image_box_w, image_box_h = cell_width - 14, 72
+                image_y = y + cell_height - 80
+                image_drawn = False
+                if image_value:
+                    try:
+                        image_data = base64.b64decode(image_value['image'].split(',', 1)[1], validate=True)
+                        image = ImageReader(BytesIO(image_data))
+                        image_w, image_h = image.getSize()
+                        scale = min(image_box_w / image_w, image_box_h / image_h)
+                        draw_w, draw_h = image_w * scale, image_h * scale
+                        pdf.drawImage(image, x + (cell_width - draw_w) / 2, image_y + (image_box_h - draw_h) / 2,
+                                      width=draw_w, height=draw_h, preserveAspectRatio=True, mask='auto')
+                        image_drawn = True
+                    except (ValueError, IndexError, TypeError):
+                        pass
+                if not image_drawn:
+                    pdf.setFillColorRGB(.94, .96, .98)
+                    pdf.roundRect(x + 10, image_y, image_box_w, image_box_h, 3, stroke=0, fill=1)
+                    pdf.setFillColorRGB(.48, .53, .60)
+                    pdf.setFont('Helvetica', 8)
+                    pdf.drawCentredString(x + cell_width / 2, image_y + image_box_h / 2 - 3, 'No image')
+
+                text_values = [(str(headers[position]), str(value.get('text') or '') if isinstance(value, dict) else str(value or ''))
+                               for position, value in enumerate(row)
+                               if not isinstance(value, dict) or not value.get('image')]
+                title_index = next((position for position, (header, value) in enumerate(text_values)
+                                    if header.strip().lower() in {'item', 'product', 'name', 'item name'} and value.strip()), None)
+                if title_index is None:
+                    title_index = next((position for position, (header, value) in enumerate(text_values)
+                                        if header.strip().lower() in {'code', 'item code', 'product code'} and value.strip()), None)
+                title_text = text_values[title_index][1] if title_index is not None else ''
+                title_lines = simpleSplit(title_text.replace('\n', ' ').encode('latin-1', 'replace').decode('latin-1'), 'Helvetica-Bold', 8.7, cell_width - 18)[:2]
+                pdf.setFillColorRGB(.09, .16, .28)
+                pdf.setFont('Helvetica-Bold', 8.7)
+                for line_number, line in enumerate(title_lines):
+                    pdf.drawCentredString(x + cell_width / 2, y + cell_height - 90 - line_number * 9, line)
+
+                detail_y = y + cell_height - 108 - max(0, len(title_lines) - 1) * 8
+                pdf.setFillColorRGB(.30, .35, .42)
+                pdf.setFont('Helvetica', 6.2)
+                visible_details = [(header, value) for position, (header, value) in enumerate(text_values)
+                                   if position != title_index and header.strip() and header.strip().lower() not in skip_headers and value.strip()]
+                for detail_index, (header, value) in enumerate(visible_details[:5]):
+                    detail = f'{header[:13]}: {value.replace(chr(10), " ")}'.encode('latin-1', 'replace').decode('latin-1')
+                    lines = simpleSplit(detail, 'Helvetica', 6.2, cell_width - 14)
+                    pdf.drawCentredString(x + cell_width / 2, detail_y - detail_index * 7.2,
+                                          lines[0][:54] if lines else '')
+                if len(visible_details) > 5:
+                    pdf.drawCentredString(x + cell_width / 2, y + 6, f'+{len(visible_details) - 5} more fields')
+
+            pdf.setFillColorRGB(.40, .44, .50)
+            pdf.setFont('Helvetica', 8)
+            pdf.drawCentredString(page_width / 2, 10, f'Page {page_index + 1} of {max(1, (len(clean_rows) + 19) // 20)}  |  {len(clean_rows)} items')
+            pdf.showPage()
+        pdf.save()
+        return response
 
     page_size = landscape(A4) if len(headers) > 6 else A4
     buffer = BytesIO()

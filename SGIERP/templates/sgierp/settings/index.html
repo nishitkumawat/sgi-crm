@@ -151,7 +151,8 @@
         <thead>
           <tr>
             <th>Name</th>
-            <th>Department</th>
+            <th>Phone</th>
+            <th>Description</th>
             <th>Status</th>
             <th>Created By</th>
             <th></th>
@@ -161,6 +162,13 @@
           {% for a in assignees %}
           <tr>
             <td><strong>{{ a.name }}</strong></td>
+            <td>
+              {% if a.phone %}
+              <a href="tel:{{ a.phone }}" style="color:var(--sgi-text);font-family:monospace;"><i class="bi bi-telephone"></i> {{ a.phone }}</a>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td>
               {% if a.department %}
               <span class="sgi-badge sgi-badge-blue">{{ a.department }}</span>

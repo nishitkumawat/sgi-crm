@@ -354,13 +354,19 @@ def machine_detail(request, machine_id):
         )
 
     max_buildable = None if not all_bom_items else min(
-        int((available_by_item.get(entry.item_id) or 0) / entry.quantity_required)
+        int(float(available_by_item.get(entry.item_id) or 0) / float(entry.quantity_required))
         for entry in all_bom_items
     )
-    dispatch_readiness_percent = None if not all_bom_items else min(
-        min((available_by_item.get(entry.item_id) or 0) / entry.quantity_required * 100, 100)
-        for entry in all_bom_items
-    )
+    total_parts_required = sum(float(entry.quantity_required) for entry in all_bom_items) if all_bom_items else 0
+    if not all_bom_items or total_parts_required <= 0:
+        dispatch_readiness_percent = None
+        completed_parts_count = 0
+    else:
+        completed_parts_count = sum(
+            min(float(available_by_item.get(entry.item_id) or 0), float(entry.quantity_required))
+            for entry in all_bom_items
+        )
+        dispatch_readiness_percent = min(100.0, max(0.0, (completed_parts_count / total_parts_required) * 100))
 
     enriched_bom = []
     available_completed_total = sum((available_by_item.get(entry.item_id) or 0 for entry in bom_items_qs), 0)
@@ -391,6 +397,8 @@ def machine_detail(request, machine_id):
         'bom_search': bom_search,
         'max_buildable': max_buildable,
         'dispatch_readiness_percent': dispatch_readiness_percent,
+        'total_parts_required': total_parts_required,
+        'completed_parts_count': completed_parts_count,
     }
     return render(request, 'sgierp/machines/detail.html', context)
 
