@@ -366,6 +366,11 @@ class DispatchComponent(models.Model):
     item_code_snapshot = models.CharField(max_length=50)
     item_name_snapshot = models.CharField(max_length=200)
     unit_snapshot = models.CharField(max_length=10)
+    # Group label for display grouping in mixed dispatches
+    group_label = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Display group label, e.g. 'Machine: MC001 (2×)' or 'Item: 430501'"
+    )
 
     class Meta:
         db_table = 'sgi_dispatch_component'

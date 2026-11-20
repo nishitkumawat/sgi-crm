@@ -9,134 +9,141 @@
 
 {% block content %}
 <style>
-  .dispatch-mode-toggle { display:inline-flex;gap:4px;padding:4px;background:var(--sgi-bg);border:1px solid var(--sgi-border);border-radius:9px;margin-bottom:16px; }
-  .dispatch-mode-toggle button { border:0;border-radius:6px;background:transparent;color:var(--sgi-text-muted);font:inherit;font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer; }
-  .dispatch-mode-toggle button.active { background:var(--sgi-primary);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15); }
-  .dispatch-product-picker,.dispatch-item-picker { position:relative; }
-  .dispatch-product-picker .autocomplete-suggestions,.dispatch-item-picker .autocomplete-suggestions { position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--sgi-border);border-radius:6px;max-height:200px;overflow-y:auto;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none; }
-  .dispatch-product-picker .autocomplete-suggestions.show,.dispatch-item-picker .autocomplete-suggestions.show { display:block; }
-  .dispatch-product-picker .suggestion-item,.dispatch-item-picker .suggestion-item { padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--sgi-border); }
-  .dispatch-product-picker .suggestion-item:last-child,.dispatch-item-picker .suggestion-item:last-child { border-bottom:0; }
-  .dispatch-product-picker .suggestion-item:hover,.dispatch-item-picker .suggestion-item:hover { background:var(--sgi-bg); }
-  .dispatch-product-picker .suggestion-item .code,.dispatch-item-picker .suggestion-item .code { font-weight:600;color:var(--sgi-primary); }
-  .dispatch-product-picker .suggestion-item .name,.dispatch-item-picker .suggestion-item .name { font-size:12px;color:var(--sgi-text-muted); }
-  .dispatch-item-picker .suggestion-item .unit { display:inline-block;background:var(--sgi-primary);color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-top:4px; }
+  .dispatch-add-row { display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px; }
+  .dispatch-add-row .sgi-form-group { margin-bottom:0;flex:1;min-width:200px; }
+  .cart-table { width:100%;border-collapse:collapse; }
+  .cart-table th { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--sgi-text-muted);padding:8px 12px;border-bottom:2px solid var(--sgi-border);text-align:left; }
+  .cart-table td { padding:10px 12px;border-bottom:1px solid var(--sgi-border);font-size:13px;vertical-align:middle; }
+  .cart-table tr:last-child td { border-bottom:none; }
+  .cart-row-type { display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700; }
+  .cart-row-type.machine { background:var(--sgi-primary-bg);color:var(--sgi-primary); }
+  .cart-row-type.item { background:var(--sgi-success-bg);color:var(--sgi-success); }
+  .cart-empty { text-align:center;padding:40px 20px;color:var(--sgi-text-muted); }
+  .autocomplete-wrapper { position:relative; }
+  .autocomplete-suggestions { position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--sgi-border);border-radius:6px;max-height:220px;overflow-y:auto;z-index:1100;box-shadow:0 4px 12px rgba(0,0,0,.15);display:none; }
+  .autocomplete-suggestions.show { display:block; }
+  .suggestion-item { padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--sgi-border);font-size:13px; }
+  .suggestion-item:last-child { border-bottom:none; }
+  .suggestion-item:hover { background:var(--sgi-bg); }
+  .suggestion-item .code { font-weight:700;color:var(--sgi-primary); }
+  .suggestion-item .sub { font-size:11px;color:var(--sgi-text-muted);margin-top:2px; }
+  /* Modal */
+  .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;align-items:center;justify-content:center; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#fff;border-radius:12px;max-width:640px;width:90%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2); }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--sgi-border);flex-shrink:0; }
+  .modal-header h3 { margin:0;font-size:15px;font-weight:700; }
+  .modal-body { padding:20px;overflow-y:auto;flex:1; }
+  .modal-footer { padding:14px 20px;border-top:1px solid var(--sgi-border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;background:#fff;border-radius:0 0 12px 12px; }
+  .bom-check-table { width:100%;border-collapse:collapse;font-size:12px; }
+  .bom-check-table th { padding:6px 10px;background:var(--sgi-bg);font-weight:700;font-size:11px;color:var(--sgi-text-muted);text-transform:uppercase;letter-spacing:.4px; }
+  .bom-check-table td { padding:7px 10px;border-bottom:1px solid var(--sgi-border); }
+  .bom-check-table .ok { color:var(--sgi-success);font-weight:700; }
+  .bom-check-table .short { color:var(--sgi-danger);font-weight:700; }
 </style>
-<script type="application/json" id="completedItemsData">[{% for item in completed_items %}{"id":{{ item.id }},"code":"{{ item.code|escapejs }}","name":"{{ item.name|escapejs }}","unit":"{{ item.unit|escapejs }}","quantity":"{{ item.total_completed|floatformat:2 }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
-<script type="application/json" id="productsData">[{% for product in machines %}{"id":{{ product.id }},"code":"{{ product.code|escapejs }}","name":"{{ product.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
-<form method="POST" action="{% url 'sgierp:dispatch_create' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
-{% csrf_token %}
-<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;" class="dispatch-form-grid">
 
-  <!-- Left -->
+<!-- Data for autocompletes -->
+<script type="application/json" id="productsData">[{% for m in machines %}{"id":{{ m.id }},"code":"{{ m.code|escapejs }}","name":"{{ m.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script type="application/json" id="completedItemsData">[{% for item in completed_items %}{"id":{{ item.id }},"code":"{{ item.code|escapejs }}","name":"{{ item.name|escapejs }}","unit":"{{ item.unit|escapejs }}","qty":{{ item.total_completed|floatformat:2 }}}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+
+<form method="POST" action="{% url 'sgierp:dispatch_create' %}" id="dispatchForm">
+{% csrf_token %}
+<input type="hidden" name="cart_json" id="cartJson" value="[]">
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;" class="dispatch-form-grid">
+
+  <!-- LEFT -->
   <div>
+
+    <!-- Add Product (Machine) -->
     <div class="sgi-card" style="margin-bottom:16px;">
       <div class="sgi-card-header">
-        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div> Product or Item Dispatch</div>
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-gear-wide-connected"></i></div> Add Product to Dispatch</div>
       </div>
       <div class="sgi-card-body">
-        <div class="dispatch-mode-toggle" role="group" aria-label="Dispatch type">
-          <button type="button" class="{% if form_data.dispatch_mode == 'single_item' %}{% else %}active{% endif %}" id="productModeButton" aria-pressed="{% if form_data.dispatch_mode == 'single_item' %}false{% else %}true{% endif %}">Product</button>
-          <button type="button" class="{% if form_data.dispatch_mode == 'single_item' %}active{% endif %}" id="singleItemModeButton" aria-pressed="{% if form_data.dispatch_mode == 'single_item' %}true{% else %}false{% endif %}">Single Item</button>
-          <input type="hidden" id="dispatchMode" name="dispatch_mode" value="{{ form_data.dispatch_mode|default:'product' }}">
-        </div>
-        <div class="form-grid">
-          <div class="sgi-form-group" id="productDispatchFields">
-            <label class="sgi-label" for="machineSelect">
-              <i class="bi bi-gear"></i> Product (machine with BOM)
-            </label>
-            <div class="dispatch-product-picker">
-            <div class="sgi-input-group"><span class="sgi-input-icon"><i class="bi bi-search"></i></span><input class="sgi-input" id="machineLookup" placeholder="Search product code or name..." autocomplete="off" value="{% if selected_machine %}{{ selected_machine.code }} — {{ selected_machine.name }}{% endif %}"></div>
-            <div class="autocomplete-suggestions" id="productSuggestions"></div>
-            <select class="sgi-select" id="machineSelect" name="machine_id" style="display:none;">
-              <option value="">-- Select Machine --</option>
-              {% for m in machines %}
-              <option value="{{ m.id }}" {% if selected_machine and selected_machine.id == m.id %}selected{% endif %}>
-                {{ m.code }} — {{ m.name }}
-              </option>
-              {% endfor %}
-            </select>
+        <div class="dispatch-add-row">
+          <div class="sgi-form-group">
+            <label class="sgi-label"><i class="bi bi-gear"></i> Product (machine with BOM)</label>
+            <div class="autocomplete-wrapper">
+              <div class="sgi-input-group">
+                <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+                <input type="text" class="sgi-input" id="machineSearch" placeholder="Search product code or name…" autocomplete="off">
+              </div>
+              <input type="hidden" id="machineId">
+              <div class="autocomplete-suggestions" id="machineSuggestions"></div>
             </div>
           </div>
-          <div class="sgi-form-group" id="singleItemDispatchFields" style="display:none;">
-            <label class="sgi-label" for="dispatchItemLookup"><i class="bi bi-box-seam"></i> Single Item from Completed Stock</label>
-            <div class="dispatch-item-picker">
-              <div class="sgi-input-group"><span class="sgi-input-icon"><i class="bi bi-search"></i></span><input class="sgi-input" id="dispatchItemLookup" placeholder="Search item code or name..." autocomplete="off" value="{% if selected_item %}{{ selected_item.code }} — {{ selected_item.name }} ({{ selected_item.completed_quantity|floatformat:2 }} {{ selected_item.unit }} @ Completed){% endif %}"></div>
-              <input type="hidden" id="dispatchItemId" name="item_id" value="{% if selected_item %}{{ selected_item.id }}{% endif %}">
-              <div class="autocomplete-suggestions" id="dispatchItemSuggestions"></div>
-            </div>
+          <div class="sgi-form-group" style="max-width:120px;">
+            <label class="sgi-label"><i class="bi bi-hash"></i> Count</label>
+            <input type="number" class="sgi-input" id="machineCount" value="1" min="1" step="1">
           </div>
-          <div class="sgi-form-group" id="machineCountField">
-            <label class="sgi-label" for="machineCount">
-                <i class="bi bi-123"></i> No. of Machines
-            </label>
-            <div class="sgi-input-group">
-              <span class="sgi-input-icon"><i class="bi bi-hash"></i></span>
-              <input type="number" class="sgi-input" id="machineCount" name="machine_count"
-                value="{{ machine_count|default:1 }}" min="1" step="1">
-            </div>
+          <div style="padding-bottom:1px;">
+            <button type="button" class="btn-sgi btn-sgi-primary" onclick="openMachineModal()">
+              <i class="bi bi-plus-circle"></i> Check &amp; Add
+            </button>
           </div>
         </div>
       </div>
     </div>
-    <div class="sgi-form-group" id="itemQuantityField" style="display:none;margin:12px 0;max-width:260px;">
-      <label class="sgi-label" for="itemQuantity">Single item quantity</label>
-      <input class="sgi-input" type="number" id="itemQuantity" name="item_quantity" min="0.01" step="0.01" value="{{ form_data.item_quantity|default:'' }}" placeholder="Required for single item dispatch">
-    </div>
 
-    <div id="productBomPreview">
-    <!-- BOM preview -->
-    {% if selected_machine and bom_preview %}
+    <!-- Add Item -->
     <div class="sgi-card" style="margin-bottom:16px;">
       <div class="sgi-card-header">
-        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-list-check"></i></div> Materials Check — {{ machine_count }}× {{ selected_machine.name }}</div>
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-box-seam"></i></div> Add Item from Completed Stock</div>
       </div>
-      <div class="sgi-table-wrap">
-        <table class="bom-table" style="width:100%;">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Per Machine</th>
-              <th>Total Required</th>
-              <th>Available (Completed)</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in bom_preview %}
-            <tr>
-              <td>
-                <strong>{{ entry.item.code }}</strong>
-                <span style="color:var(--sgi-text-muted);font-size:12px;"> — {{ entry.item.name }}</span>
-              </td>
-              <td>{{ entry.quantity_required_per_machine|floatformat:2 }}</td>
-              <td><strong>{{ entry.total_required|floatformat:2 }}</strong> {{ entry.item.unit }}</td>
-              <td class="{% if entry.sufficient %}sufficient{% else %}insufficient{% endif %}">
-                {{ entry.available|floatformat:2 }}
-              </td>
-              <td>
-                {% if entry.sufficient %}
-                <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-lg"></i> OK</span>
-                {% else %}
-                <span class="sgi-badge sgi-badge-red"><i class="bi bi-exclamation-triangle"></i> Short</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot><tr><th>Total</th><th>{{ bom_preview_totals.per_machine|floatformat:2 }}</th><th>{{ bom_preview_totals.required|floatformat:2 }}</th><th>{{ bom_preview_totals.available|floatformat:2 }}</th><th></th></tr></tfoot>
-        </table>
+      <div class="sgi-card-body">
+        <div class="dispatch-add-row">
+          <div class="sgi-form-group">
+            <label class="sgi-label"><i class="bi bi-box-seam"></i> Item (completed stock only)</label>
+            <div class="autocomplete-wrapper">
+              <div class="sgi-input-group">
+                <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
+                <input type="text" class="sgi-input" id="itemSearch" placeholder="Search item code or name…" autocomplete="off">
+              </div>
+              <input type="hidden" id="itemId">
+              <input type="hidden" id="itemUnit">
+              <input type="hidden" id="itemAvailQty">
+              <div class="autocomplete-suggestions" id="itemSuggestions"></div>
+            </div>
+          </div>
+          <div class="sgi-form-group" style="max-width:140px;">
+            <label class="sgi-label"><i class="bi bi-123"></i> Quantity</label>
+            <input type="number" class="sgi-input" id="itemQty" placeholder="0" min="0.01" step="0.01">
+          </div>
+          <div style="padding-bottom:1px;">
+            <button type="button" class="btn-sgi btn-sgi-primary" onclick="addItemToCart()">
+              <i class="bi bi-plus-circle"></i> Add Item
+            </button>
+          </div>
+        </div>
+        <div id="itemStockHint" style="font-size:12px;color:var(--sgi-text-muted);margin-top:4px;display:none;">
+          <i class="bi bi-info-circle"></i> Available in Completed: <strong id="itemStockHintQty"></strong>
+        </div>
       </div>
-    </div>
-    {% elif selected_machine %}
-    <div class="sgi-alert sgi-alert-warning" style="margin-bottom:16px;">
-      <i class="bi bi-exclamation-triangle-fill"></i>
-      This machine has no BOM components defined. <a href="{% url 'sgierp:machine_edit' selected_machine.id %}">Edit Machine</a>
-    </div>
-    {% endif %}
     </div>
 
-    <!-- Dispatch details -->
+    <!-- Cart -->
+    <div class="sgi-card" style="margin-bottom:16px;">
+      <div class="sgi-card-header">
+        <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-cart3"></i></div> Dispatch Cart <span id="cartBadge" style="margin-left:6px;background:var(--sgi-primary);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">0</span></div>
+      </div>
+      <div id="cartContainer">
+        <div class="cart-empty" id="cartEmpty"><i class="bi bi-cart-x" style="font-size:28px;display:block;margin-bottom:8px;"></i>No items in cart yet.<br><small>Add a product or item above.</small></div>
+        <div class="sgi-table-wrap" id="cartTableWrap" style="display:none;">
+          <table class="cart-table">
+            <thead><tr>
+              <th>Type</th>
+              <th>Code / Name</th>
+              <th>Qty / Count</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="cartBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dispatch Details -->
     <div class="sgi-card">
       <div class="sgi-card-header">
         <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-truck"></i></div> Dispatch Details</div>
@@ -144,19 +151,14 @@
       <div class="sgi-card-body">
         <div class="form-grid">
           <div class="sgi-form-group">
-            <label class="sgi-label" for="customer_name">
-              <i class="bi bi-person"></i> Customer Name
-            </label>
+            <label class="sgi-label" for="customer_name"><i class="bi bi-person"></i> Customer Name</label>
             <div class="sgi-input-group">
               <span class="sgi-input-icon"><i class="bi bi-person"></i></span>
-              <input type="text" class="sgi-input" id="customer_name" name="customer_name"
-                value="{{ form_data.customer_name|default:'' }}" placeholder="Optional">
+              <input type="text" class="sgi-input" id="customer_name" name="customer_name" placeholder="Optional">
             </div>
           </div>
           <div class="sgi-form-group">
-            <label class="sgi-label" for="dispatch_date">
-              <i class="bi bi-calendar"></i> Dispatch Date & Time
-            </label>
+            <label class="sgi-label" for="dispatch_date"><i class="bi bi-calendar"></i> Dispatch Date &amp; Time</label>
             <div class="sgi-input-group">
               <span class="sgi-input-icon"><i class="bi bi-calendar"></i></span>
               <input type="datetime-local" class="sgi-input" id="dispatch_date" name="dispatch_date"
@@ -166,53 +168,39 @@
         </div>
         <div class="form-grid">
           <div class="sgi-form-group">
-            <label class="sgi-label" for="invoice_reference">
-              <i class="bi bi-receipt"></i> Invoice / Reference No.
-            </label>
+            <label class="sgi-label" for="invoice_reference"><i class="bi bi-receipt"></i> Invoice / Reference No.</label>
             <div class="sgi-input-group">
               <span class="sgi-input-icon"><i class="bi bi-receipt"></i></span>
-              <input type="text" class="sgi-input" id="invoice_reference" name="invoice_reference"
-                value="{{ form_data.invoice_reference|default:'' }}" placeholder="Optional">
+              <input type="text" class="sgi-input" id="invoice_reference" name="invoice_reference" placeholder="Optional">
             </div>
           </div>
           <div class="sgi-form-group">
-            <label class="sgi-label" for="remarks">
-              <i class="bi bi-chat-text"></i> Remarks
-            </label>
+            <label class="sgi-label" for="remarks"><i class="bi bi-chat-text"></i> Remarks</label>
             <div class="sgi-input-group">
               <span class="sgi-input-icon"><i class="bi bi-pencil"></i></span>
-              <input type="text" class="sgi-input" id="remarks" name="remarks"
-                value="{{ form_data.remarks|default:'' }}" placeholder="Optional">
+              <input type="text" class="sgi-input" id="remarks" name="remarks" placeholder="Optional">
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Right: submit -->
+  </div><!-- /LEFT -->
+
+  <!-- RIGHT -->
   <div>
-    <div class="sgi-card">
+    <div class="sgi-card" style="position:sticky;top:20px;">
       <div class="sgi-card-body">
         <div style="font-size:13px;color:var(--sgi-text-muted);line-height:1.6;margin-bottom:16px;">
-          Dispatching will <strong>atomically deduct</strong> the required components from completed stock using <strong>FIFO</strong> order.
-          The operation will fail if any component has insufficient completed stock.
+          Dispatching will <strong>atomically deduct</strong> required stock from Completed using <strong>FIFO</strong>.
+          The operation fails if any item has insufficient completed stock.
         </div>
-        {% if selected_machine %}
-        <div style="background:var(--sgi-bg);border-radius:8px;padding:14px;margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:600;color:var(--sgi-text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Summary</div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-            <span style="font-size:13px;">Machine:</span>
-            <span style="font-size:13px;font-weight:700;">{{ selected_machine.code }}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;">
-            <span style="font-size:13px;">Quantity:</span>
-            <span style="font-size:13px;font-weight:700;">{{ machine_count }} unit{{ machine_count|pluralize }}</span>
-          </div>
+        <div id="cartSummary" style="background:var(--sgi-bg);border-radius:8px;padding:14px;margin-bottom:16px;min-height:48px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--sgi-text-muted);margin-bottom:8px;">Cart Summary</div>
+          <div id="cartSummaryBody" style="font-size:13px;color:var(--sgi-text-muted);">Empty</div>
         </div>
-        {% endif %}
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <button type="submit" class="btn-sgi btn-sgi-primary" style="justify-content:center;">
+          <button type="submit" class="btn-sgi btn-sgi-primary" style="justify-content:center;" id="submitBtn" disabled>
             <i class="bi bi-truck"></i> Confirm Dispatch
           </button>
           <a href="{% url 'sgierp:dispatch_list' %}" class="btn-sgi btn-sgi-outline" style="justify-content:center;">Cancel</a>
@@ -223,100 +211,293 @@
 
 </div>
 </form>
+
+<!-- BOM Check Modal -->
+<div class="modal-overlay" id="bomModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="bomModalTitle">Materials Check</h3>
+      <button type="button" onclick="closeBomModal()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--sgi-text-muted);">&times;</button>
+    </div>
+    <div class="modal-body" id="bomModalBody">
+      <div style="text-align:center;padding:30px;color:var(--sgi-text-muted);"><i class="bi bi-hourglass-split" style="font-size:28px;"></i><br>Loading…</div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-sgi btn-sgi-outline" onclick="closeBomModal()">Cancel</button>
+      <button type="button" class="btn-sgi btn-sgi-primary" id="bomAddBtn" onclick="confirmAddMachine()" disabled>
+        <i class="bi bi-plus-circle"></i> Add to Cart
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const lookup = document.getElementById('dispatchItemLookup');
-  const hidden = document.getElementById('dispatchItemId');
-  let items = [];
-  try { items = JSON.parse(document.getElementById('completedItemsData')?.textContent || '[]'); } catch (e) {}
-  const suggestions = document.getElementById('dispatchItemSuggestions');
-  const productLookup = document.getElementById('machineLookup');
-  const productSuggestions = document.getElementById('productSuggestions');
-  const productSelect = document.getElementById('machineSelect');
-  let products = [];
-  try { products = JSON.parse(document.getElementById('productsData')?.textContent || '[]'); } catch (e) {}
-  productLookup?.addEventListener('input', function () {
-    const query = this.value.trim().toLowerCase();
-    productSelect.value = '';
-    hidden.value = '';
-    productSuggestions.replaceChildren();
-    products.filter(product => product.code.toLowerCase().includes(query) || product.name.toLowerCase().includes(query))
-      .slice(0, 50).forEach(product => {
-        const option = document.createElement('div');
-        option.className = 'suggestion-item';
-        const code = document.createElement('div'); code.className = 'code'; code.textContent = product.code;
-        const name = document.createElement('div'); name.className = 'name'; name.textContent = product.name;
-        option.append(code, name);
-        option.addEventListener('click', () => {
-          productLookup.value = `${product.code} — ${product.name}`;
-          productSelect.value = product.id;
-          productSuggestions.classList.remove('show');
-          productSelect.dispatchEvent(new Event('change'));
-        });
-        productSuggestions.appendChild(option);
-      });
-    productSuggestions.classList.toggle('show', productSuggestions.childElementCount > 0);
-  });
-  productLookup?.addEventListener('focus', function () {
-    if (!productSelect.value) this.dispatchEvent(new Event('input'));
-  });
-  lookup?.addEventListener('input', function () {
-    const query = this.value.trim().toLowerCase();
-    hidden.value = '';
-    suggestions.replaceChildren();
-    items.filter(item => item.code.toLowerCase().includes(query) || item.name.toLowerCase().includes(query))
-      .slice(0, 50).forEach(item => {
-        const option = document.createElement('div');
-        option.className = 'suggestion-item';
-        const code = document.createElement('div'); code.className = 'code'; code.textContent = item.code;
-        const name = document.createElement('div'); name.className = 'name'; name.textContent = item.name;
-        const stock = document.createElement('div'); stock.className = 'unit'; stock.textContent = `${item.quantity} ${item.unit} @ Completed`;
-        option.append(code, name, stock);
-        option.addEventListener('click', () => {
-          lookup.value = `${item.code} — ${item.name} (${item.quantity} ${item.unit} @ Completed)`;
-          hidden.value = item.id;
-          suggestions.classList.remove('show');
-          productSelect.value = ''; productLookup.value = '';
-          productSuggestions.classList.remove('show');
-        });
-        suggestions.appendChild(option);
-      });
-    suggestions.classList.toggle('show', suggestions.childElementCount > 0);
-  });
-  lookup?.addEventListener('focus', function () {
-    if (!hidden.value) this.dispatchEvent(new Event('input'));
-  });
-  document.addEventListener('click', event => {
-    if (!event.target.closest('.dispatch-item-picker')) suggestions?.classList.remove('show');
-    if (!event.target.closest('.dispatch-product-picker')) productSuggestions?.classList.remove('show');
-  });
-  const modeInput = document.getElementById('dispatchMode');
-  const productButton = document.getElementById('productModeButton');
-  const itemButton = document.getElementById('singleItemModeButton');
-  const productBomPreview = document.getElementById('productBomPreview');
-  const setMode = mode => {
-    const isSingleItem = mode === 'single_item';
-    modeInput.value = mode;
-    productButton.classList.toggle('active', !isSingleItem);
-    itemButton.classList.toggle('active', isSingleItem);
-    productButton.setAttribute('aria-pressed', String(!isSingleItem));
-    itemButton.setAttribute('aria-pressed', String(isSingleItem));
-    document.getElementById('productDispatchFields').style.display = isSingleItem ? 'none' : '';
-    document.getElementById('machineCountField').style.display = isSingleItem ? 'none' : '';
-    document.getElementById('singleItemDispatchFields').style.display = isSingleItem ? '' : 'none';
-    document.getElementById('itemQuantityField').style.display = isSingleItem ? '' : 'none';
-    if (productBomPreview) productBomPreview.style.display = isSingleItem ? 'none' : '';
-    if (isSingleItem) { productSelect.value = ''; productLookup.value = ''; productSuggestions.classList.remove('show'); }
-    else { hidden.value = ''; lookup.value = ''; suggestions.classList.remove('show'); }
-    suggestions.classList.remove('show');
+(function() {
+  // ---- Data ----
+  let products = [], completedItems = [];
+  try { products = JSON.parse(document.getElementById('productsData').textContent); } catch(e){}
+  try { completedItems = JSON.parse(document.getElementById('completedItemsData').textContent); } catch(e){}
+
+  // ---- Cart state ----
+  let cart = [];
+  let pendingMachineId = null, pendingMachineCode = null, pendingMachineName = null, pendingMachineCount = 1;
+
+  // ---- Cart rendering ----
+  function renderCart() {
+    const badge = document.getElementById('cartBadge');
+    const empty = document.getElementById('cartEmpty');
+    const wrap  = document.getElementById('cartTableWrap');
+    const tbody = document.getElementById('cartBody');
+    const summaryBody = document.getElementById('cartSummaryBody');
+    const submitBtn = document.getElementById('submitBtn');
+    const cartJson  = document.getElementById('cartJson');
+
+    badge.textContent = cart.length;
+    cartJson.value = JSON.stringify(cart);
+    submitBtn.disabled = cart.length === 0;
+
+    if (cart.length === 0) {
+      empty.style.display = '';
+      wrap.style.display  = 'none';
+      summaryBody.textContent = 'Empty';
+      return;
+    }
+    empty.style.display = 'none';
+    wrap.style.display  = '';
+
+    tbody.innerHTML = '';
+    let summaryLines = [];
+    cart.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      let typeHtml, codeHtml, qtyHtml;
+      if (row.type === 'machine') {
+        typeHtml = `<span class="cart-row-type machine"><i class="bi bi-gear"></i> Product</span>`;
+        codeHtml = `<strong>${row.machine_code}</strong> <span style="color:var(--sgi-text-muted);font-size:12px;">— ${row.machine_name}</span>`;
+        qtyHtml  = `<strong>${row.count}</strong> unit${row.count !== 1 ? 's' : ''}`;
+        summaryLines.push(`${row.count}× ${row.machine_code}`);
+      } else {
+        typeHtml = `<span class="cart-row-type item"><i class="bi bi-box-seam"></i> Item</span>`;
+        codeHtml = `<strong>${row.item_code}</strong> <span style="color:var(--sgi-text-muted);font-size:12px;">— ${row.item_name}</span>`;
+        qtyHtml  = `<strong>${parseFloat(row.quantity)}</strong> ${row.unit}`;
+        summaryLines.push(`${parseFloat(row.quantity)} ${row.unit} of ${row.item_code}`);
+      }
+      tr.innerHTML = `<td>${typeHtml}</td><td>${codeHtml}</td><td>${qtyHtml}</td>
+        <td><button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" onclick="removeFromCart(${idx})" style="color:var(--sgi-danger);padding:4px 8px;" title="Remove"><i class="bi bi-trash3"></i></button></td>`;
+      tbody.appendChild(tr);
+    });
+    summaryBody.innerHTML = summaryLines.map(l => `<div style="margin-bottom:4px;">• ${l}</div>`).join('');
+  }
+
+  window.removeFromCart = function(idx) {
+    cart.splice(idx, 1);
+    renderCart();
   };
-  productButton.addEventListener('click', () => setMode('product'));
-  itemButton.addEventListener('click', () => setMode('single_item'));
-  setMode(modeInput.value || 'product');
-});
+
+  // ---- Autocomplete helper ----
+  function setupAutocomplete(inputEl, suggestionsEl, hiddenEl, dataArr, displayFn, selectFn) {
+    function show(query) {
+      const q = query.toLowerCase().trim();
+      suggestionsEl.innerHTML = '';
+      const filtered = dataArr.filter(d =>
+        d.code.toLowerCase().includes(q) || d.name.toLowerCase().includes(q)
+      ).slice(0, 60);
+      if (!filtered.length) { suggestionsEl.classList.remove('show'); return; }
+      filtered.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.innerHTML = displayFn(d);
+        div.addEventListener('click', () => {
+          selectFn(d);
+          suggestionsEl.classList.remove('show');
+        });
+        suggestionsEl.appendChild(div);
+      });
+      suggestionsEl.classList.add('show');
+    }
+    inputEl.addEventListener('input', () => { hiddenEl.value = ''; show(inputEl.value); });
+    inputEl.addEventListener('focus', () => { if (!hiddenEl.value) show(inputEl.value); });
+  }
+
+  // ---- Product autocomplete ----
+  const machineSearch = document.getElementById('machineSearch');
+  const machineId     = document.getElementById('machineId');
+  setupAutocomplete(
+    machineSearch, document.getElementById('machineSuggestions'), machineId, products,
+    d => `<div class="code">${d.code}</div><div class="sub">${d.name}</div>`,
+    d => { machineSearch.value = `${d.code} — ${d.name}`; machineId.value = d.id; }
+  );
+
+  // ---- Item autocomplete ----
+  const itemSearch   = document.getElementById('itemSearch');
+  const itemIdEl     = document.getElementById('itemId');
+  const itemUnitEl   = document.getElementById('itemUnit');
+  const itemAvailEl  = document.getElementById('itemAvailQty');
+  setupAutocomplete(
+    itemSearch, document.getElementById('itemSuggestions'), itemIdEl, completedItems,
+    d => `<div class="code">${d.code}</div><div class="sub">${d.name} &nbsp;·&nbsp; <strong>${parseFloat(d.qty)}</strong> ${d.unit} @ Completed</div>`,
+    d => {
+      itemSearch.value = `${d.code} — ${d.name}`;
+      itemIdEl.value = d.id;
+      itemUnitEl.value = d.unit;
+      itemAvailEl.value = d.qty;
+      const hint = document.getElementById('itemStockHint');
+      document.getElementById('itemStockHintQty').textContent = `${parseFloat(d.qty)} ${d.unit}`;
+      hint.style.display = '';
+    }
+  );
+
+  // ---- Add item to cart ----
+  window.addItemToCart = function() {
+    const id   = itemIdEl.value;
+    const qty  = parseFloat(document.getElementById('itemQty').value);
+    const unit = itemUnitEl.value;
+    const avail = parseFloat(itemAvailEl.value || '0');
+    const parts = itemSearch.value.split(' — ');
+    const code = parts[0] ? parts[0].trim() : '';
+    const name = parts.slice(1).join(' — ').trim();
+
+    if (!id) { alert('Please select an item from the list.'); return; }
+    if (isNaN(qty) || qty <= 0) { alert('Enter a valid quantity.'); return; }
+    if (qty > avail) { alert(`Only ${avail} ${unit} available in Completed stock.`); return; }
+
+    // Prevent duplicate
+    if (cart.find(r => r.type === 'item' && r.item_id == id)) {
+      if (!confirm('This item is already in cart. Add another line?')) return;
+    }
+
+    cart.push({ type: 'item', item_id: parseInt(id), item_code: code, item_name: name, quantity: qty, unit });
+    renderCart();
+    // Reset
+    itemSearch.value = ''; itemIdEl.value = ''; itemUnitEl.value = ''; itemAvailEl.value = '';
+    document.getElementById('itemQty').value = '';
+    document.getElementById('itemStockHint').style.display = 'none';
+  };
+
+  // ---- Machine BOM modal ----
+  window.openMachineModal = function() {
+    const id    = machineId.value;
+    const count = parseInt(document.getElementById('machineCount').value) || 1;
+    if (!id) { alert('Please select a product first.'); return; }
+
+    const parts = machineSearch.value.split(' — ');
+    pendingMachineId    = parseInt(id);
+    pendingMachineCode  = parts[0].trim();
+    pendingMachineName  = parts.slice(1).join(' — ').trim();
+    pendingMachineCount = count;
+
+    document.getElementById('bomModalTitle').textContent =
+      `Materials Check — ${count}× ${pendingMachineCode}`;
+    document.getElementById('bomModalBody').innerHTML =
+      `<div style="text-align:center;padding:30px;color:var(--sgi-text-muted);"><i class="bi bi-hourglass-split" style="font-size:28px;"></i><br>Loading…</div>`;
+    document.getElementById('bomAddBtn').disabled = true;
+    document.getElementById('bomModal').classList.add('show');
+
+    fetch(`{% url 'sgierp:dispatch_bom_preview' %}?machine_id=${id}&count=${count}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById('bomModalBody').innerHTML = `<div style="color:var(--sgi-danger);">${data.error}</div>`;
+          return;
+        }
+        if (!data.has_bom) {
+          document.getElementById('bomModalBody').innerHTML =
+            `<div class="sgi-alert sgi-alert-warning"><i class="bi bi-exclamation-triangle-fill"></i> This machine has no BOM components defined. You cannot dispatch it.</div>`;
+          return;
+        }
+        let html = `<table class="bom-check-table"><thead><tr>
+          <th>Item</th><th>Per Machine</th><th>Total Required</th><th>Available</th><th>Status</th>
+        </tr></thead><tbody>`;
+        data.rows.forEach(row => {
+          html += `<tr>
+            <td><strong>${row.code}</strong><br><span style="color:var(--sgi-text-muted);font-size:11px;">${row.name}</span></td>
+            <td>${row.per_machine} ${row.unit}</td>
+            <td><strong>${row.required} ${row.unit}</strong></td>
+            <td class="${row.ok ? 'ok' : 'short'}">${row.available} ${row.unit}</td>
+            <td>${row.ok
+              ? '<span class="sgi-badge sgi-badge-green"><i class="bi bi-check-lg"></i> OK</span>'
+              : '<span class="sgi-badge sgi-badge-red"><i class="bi bi-exclamation-triangle"></i> Short</span>'
+            }</td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+        if (!data.all_ok) {
+          html += `<div class="sgi-alert sgi-alert-warning" style="margin-top:14px;">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Some items have <strong>insufficient</strong> completed stock. You can still add this to the cart — the final dispatch will fail with an error.
+          </div>`;
+        } else {
+          html += `<div style="margin-top:12px;padding:10px 14px;background:var(--sgi-success-bg);border-radius:8px;color:var(--sgi-success);font-size:13px;font-weight:600;">
+            <i class="bi bi-check-circle-fill"></i> All materials are available. Ready to dispatch.
+          </div>`;
+        }
+        document.getElementById('bomModalBody').innerHTML = html;
+        document.getElementById('bomAddBtn').disabled = false;
+      })
+      .catch(() => {
+        document.getElementById('bomModalBody').innerHTML = `<div style="color:var(--sgi-danger);">Failed to load BOM. Check connection.</div>`;
+      });
+  };
+
+  window.closeBomModal = function() {
+    document.getElementById('bomModal').classList.remove('show');
+  };
+
+  window.confirmAddMachine = function() {
+    // Check for existing machine in cart
+    if (cart.find(r => r.type === 'machine' && r.machine_id === pendingMachineId)) {
+      if (!confirm('This product is already in cart. Add another line?')) { closeBomModal(); return; }
+    }
+    cart.push({
+      type: 'machine',
+      machine_id: pendingMachineId,
+      machine_code: pendingMachineCode,
+      machine_name: pendingMachineName,
+      count: pendingMachineCount,
+    });
+    renderCart();
+    closeBomModal();
+    // Reset machine picker
+    machineSearch.value = ''; machineId.value = '';
+    document.getElementById('machineCount').value = 1;
+  };
+
+  // Close modal on overlay click
+  document.getElementById('bomModal').addEventListener('click', function(e) {
+    if (e.target === this) closeBomModal();
+  });
+
+  // Close suggestions on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.autocomplete-wrapper')) {
+      document.querySelectorAll('.autocomplete-suggestions').forEach(s => s.classList.remove('show'));
+    }
+  });
+
+  // Guard form submit
+  document.getElementById('dispatchForm').addEventListener('submit', function(e) {
+    if (cart.length === 0) {
+      e.preventDefault();
+      alert('Cart is empty. Add at least one product or item.');
+    }
+  });
+
+  renderCart();
+
+  // ---- Auto-select machine from URL param (?machine=ID) ----
+  const preselectedMachineId = '{{ preselect_machine_id|escapejs }}';
+  if (preselectedMachineId) {
+    const preProduct = products.find(p => String(p.id) === preselectedMachineId);
+    if (preProduct) {
+      machineSearch.value = `${preProduct.code} — ${preProduct.name}`;
+      machineId.value = preProduct.id;
+      // Small delay so the page renders before the modal appears
+      setTimeout(() => openMachineModal(), 150);
+    }
+  }
+})();
 </script>
 {% endblock %}

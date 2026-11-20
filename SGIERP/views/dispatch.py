@@ -1,16 +1,18 @@
 """SGIERP Machine Dispatch views."""
-from decimal import Decimal
+import json
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Q
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
+from django.http import JsonResponse
 from django.utils import timezone
 
 from SGIERP.decorators import sgi_login_required, sgi_delete_passcode_required, get_sgi_user
 from SGIERP.models import Machine, MachineDispatch, MachineBOM, ItemProcess, Item, ERPConfig
-from SGIERP.services import dispatch_machine, dispatch_item, delete_dispatch, get_completed_process
+from SGIERP.services import dispatch_machine, dispatch_item, dispatch_mixed, delete_dispatch, get_completed_process
 
 
 def _get_default_per_page():
@@ -96,93 +98,32 @@ def dispatch_list(request):
 
 @sgi_login_required
 def dispatch_create(request):
-    """Create a new machine dispatch."""
+    """Create a new dispatch — supports a multi-item cart (machines + items)."""
     user = get_sgi_user(request)
     machines = Machine.objects.filter(is_active=True).order_by('code')
     completed = get_completed_process()
 
-    selected_machine = None
-    selected_item = None
-    bom_preview = []
-
-    machine_id = request.GET.get('machine') or request.POST.get('machine_id')
-    machine_count_str = request.GET.get('count', '1') or request.POST.get('machine_count', '1')
-
-    try:
-        machine_count = int(machine_count_str)
-    except (ValueError, TypeError):
-        machine_count = 1
-
-    if machine_id:
-        try:
-            selected_machine = Machine.objects.prefetch_related('bom_items__item').get(
-                id=machine_id, is_active=True
+    completed_items = Item.objects.none()
+    if completed:
+        completed_items = (
+            Item.objects.filter(
+                is_active=True,
+                process_entries__process=completed,
+                process_entries__quantity__gt=0,
             )
-            for entry in selected_machine.bom_items.all():
-                avail = 0
-                if completed:
-                    result = entry.item.process_entries.filter(
-                        process=completed, quantity__gt=0
-                    ).aggregate(total=Sum('quantity'))
-                    avail = result['total'] or 0
-                required = entry.quantity_required * machine_count
-                bom_preview.append({
-                    'item': entry.item,
-                    'quantity_required_per_machine': entry.quantity_required,
-                    'total_required': required,
-                    'available': avail,
-                    'sufficient': avail >= required,
-                })
-        except Machine.DoesNotExist:
-            pass
-    bom_preview_totals = {
-        'per_machine': sum((row['quantity_required_per_machine'] for row in bom_preview), 0),
-        'required': sum((row['total_required'] for row in bom_preview), 0),
-        'available': sum((row['available'] for row in bom_preview), 0),
-    }
-    item_id = request.GET.get('item') or request.POST.get('item_id')
-    if item_id:
-        selected_item = Item.objects.filter(id=item_id, is_active=True).first()
-
-    completed_items = Item.objects.filter(is_active=True, process_entries__process=completed,
-        process_entries__quantity__gt=0).distinct().annotate(
-            total_completed=Sum('process_entries__quantity', filter=Q(process_entries__process=completed))
-        ) if completed else Item.objects.none()
+            .distinct()
+            .annotate(total_completed=Sum(
+                'process_entries__quantity',
+                filter=Q(process_entries__process=completed)
+            ))
+        )
 
     if request.method == 'POST':
-        mid = request.POST.get('machine_id', '').strip()
-        mcount_str = request.POST.get('machine_count', '1').strip()
-        customer = request.POST.get('customer_name', '').strip()
+        customer      = request.POST.get('customer_name', '').strip()
         dispatch_date_str = request.POST.get('dispatch_date', '').strip()
-        invoice = request.POST.get('invoice_reference', '').strip()
-        remarks = request.POST.get('remarks', '').strip()
-
-        errors = []
-        item_id = request.POST.get('item_id', '').strip()
-        direct_item = request.POST.get('dispatch_mode') == 'single_item'
-        if direct_item and not item_id:
-            errors.append('Please select an item from the lookup list.')
-        elif not direct_item and not mid:
-            errors.append('Please select a product.')
-
-        try:
-            mcount = int(mcount_str)
-            if mcount < 1:
-                errors.append('Machine count must be at least 1.')
-        except ValueError:
-            mcount = 1
-            errors.append('Invalid machine count.')
-
-        if errors:
-            for e in errors:
-                messages.error(request, e)
-            return render(request, 'sgierp/dispatch/create.html', {
-                'machines': machines, 'selected_machine': selected_machine,
-                'completed_items': completed_items, 'selected_item': selected_item,
-                'bom_preview': bom_preview, 'machine_count': machine_count,
-                'bom_preview_totals': bom_preview_totals,
-                'form_data': request.POST, 'page_title': 'New Dispatch',
-            })
+        invoice       = request.POST.get('invoice_reference', '').strip()
+        remarks       = request.POST.get('remarks', '').strip()
+        cart_json     = request.POST.get('cart_json', '').strip()
 
         dispatch_date = None
         if dispatch_date_str:
@@ -193,34 +134,140 @@ def dispatch_create(request):
                 pass
 
         try:
-            if direct_item:
-                quantity = Decimal(request.POST.get('item_quantity', '0'))
-                dispatch = dispatch_item(int(item_id), quantity, customer, dispatch_date, invoice, remarks, user)
+            cart = json.loads(cart_json) if cart_json else []
+        except (json.JSONDecodeError, TypeError):
+            cart = []
+
+        if not cart:
+            messages.error(request, 'Cart is empty. Add at least one product or item.')
+        else:
+            # Build typed cart entries
+            cart_entries = []
+            errors = []
+            for row in cart:
+                rtype = row.get('type')
+                if rtype == 'machine':
+                    try:
+                        cart_entries.append({
+                            'type': 'machine',
+                            'machine_id': int(row['machine_id']),
+                            'count': int(row.get('count', 1)),
+                        })
+                    except (KeyError, ValueError, TypeError) as e:
+                        errors.append(f'Invalid machine entry: {e}')
+                elif rtype == 'item':
+                    try:
+                        cart_entries.append({
+                            'type': 'item',
+                            'item_id': int(row['item_id']),
+                            'quantity': Decimal(str(row['quantity'])),
+                        })
+                    except (KeyError, ValueError, TypeError, InvalidOperation) as e:
+                        errors.append(f'Invalid item entry: {e}')
+                else:
+                    errors.append(f'Unknown cart entry type: {rtype}')
+
+            if errors:
+                for e in errors:
+                    messages.error(request, e)
             else:
-                dispatch = dispatch_machine(int(mid), mcount, customer, dispatch_date, invoice, remarks, user)
-            messages.success(
-                request,
-                f'Dispatch #{dispatch.id} created.'
-            )
-            return redirect('sgierp:dispatch_detail', dispatch_id=dispatch.id)
-        except ValidationError as e:
-            messages.error(request, str(e.message))
-        except Exception as e:
-            messages.error(request, f'Dispatch failed: {e}')
+                try:
+                    dispatch = dispatch_mixed(
+                        cart_entries=cart_entries,
+                        customer_name=customer,
+                        dispatch_date=dispatch_date,
+                        invoice_reference=invoice,
+                        remarks=remarks,
+                        dispatched_by=user,
+                    )
+                    messages.success(request, f'Dispatch #{dispatch.id} created successfully.')
+                    return redirect('sgierp:dispatch_detail', dispatch_id=dispatch.id)
+                except ValidationError as e:
+                    messages.error(request, str(e.message))
+                except Exception as e:
+                    messages.error(request, f'Dispatch failed: {e}')
 
     context = {
         'machines': machines,
         'completed_items': completed_items,
-        'selected_item': selected_item,
-        'selected_machine': selected_machine,
-        'bom_preview': bom_preview,
-        'bom_preview_totals': bom_preview_totals,
-        'machine_count': machine_count,
-        'form_data': request.POST if request.method == 'POST' else request.GET,
         'now': timezone.now(),
         'page_title': 'New Dispatch',
+        'preselect_machine_id': request.GET.get('machine', ''),
     }
     return render(request, 'sgierp/dispatch/create.html', context)
+
+
+@sgi_login_required
+@require_GET
+def dispatch_bom_preview(request):
+    """AJAX: return BOM stock check for a machine + count. Optimised: 3 queries total."""
+    machine_id = request.GET.get('machine_id')
+    count_str  = request.GET.get('count', '1')
+
+    try:
+        mid   = int(machine_id)
+        count = max(1, int(count_str))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Machine not found'}, status=404)
+
+    # Query 1: completed process
+    completed = get_completed_process()
+
+    # Query 2: machine + all BOM entries + items in one shot
+    try:
+        machine = Machine.objects.prefetch_related(
+            'bom_items__item'
+        ).get(id=mid, is_active=True)
+    except Machine.DoesNotExist:
+        return JsonResponse({'error': 'Machine not found'}, status=404)
+
+    bom_entries = list(machine.bom_items.all())  # already prefetched
+    if not bom_entries:
+        return JsonResponse({
+            'machine_code': machine.code, 'machine_name': machine.name,
+            'count': count, 'rows': [], 'all_ok': True, 'has_bom': False,
+        })
+
+    # Query 3: get ALL completed stock for ALL BOM items in one bulk query
+    item_ids = [e.item_id for e in bom_entries]
+    if completed:
+        stock_qs = (
+            ItemProcess.objects
+            .filter(item_id__in=item_ids, process=completed)
+            .values('item_id')
+            .annotate(total=Sum('quantity'))
+        )
+        stock_map = {row['item_id']: float(row['total'] or 0) for row in stock_qs}
+    else:
+        stock_map = {}
+
+    rows = []
+    all_ok = True
+    for entry in bom_entries:
+        item     = entry.item
+        avail    = stock_map.get(item.id, 0.0)
+        required = float(entry.quantity_required * count)
+        ok       = avail >= required
+        if not ok:
+            all_ok = False
+        rows.append({
+            'code': item.code,
+            'name': item.name,
+            'unit': item.unit,
+            'per_machine': float(entry.quantity_required),
+            'required': required,
+            'available': avail,
+            'ok': ok,
+        })
+
+    return JsonResponse({
+        'machine_code': machine.code,
+        'machine_name': machine.name,
+        'count': count,
+        'rows': rows,
+        'all_ok': all_ok,
+        'has_bom': True,
+    })
 
 
 @sgi_login_required

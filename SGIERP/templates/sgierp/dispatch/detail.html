@@ -12,14 +12,23 @@
   <div class="sgi-card-body" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
     <div style="flex:1;min-width:200px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Product / Item</div>
-      {% if dispatch.machine %}<a href="{% url 'sgierp:machine_detail' dispatch.machine.id %}" style="font-size:20px;font-weight:800;color:var(--sgi-text);text-decoration:none;">
-        {{ dispatch.machine.code }} — {{ dispatch.machine.name }}
-      </a>{% else %}<div style="font-size:20px;font-weight:800;">Single item</div>{% endif %}
+      {% if dispatch.machine %}
+        <a href="{% url 'sgierp:machine_detail' dispatch.machine.id %}" style="font-size:20px;font-weight:800;color:var(--sgi-text);text-decoration:none;">
+          {{ dispatch.machine.code }} — {{ dispatch.machine.name }}
+        </a>
+      {% else %}
+        <div style="font-size:20px;font-weight:800;">
+          Mixed Dispatch
+          <span style="font-size:13px;font-weight:400;color:var(--sgi-text-muted);">({{ components|length }} line{{ components|length|pluralize }})</span>
+        </div>
+      {% endif %}
     </div>
+    {% if dispatch.machine %}
     <div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">{% if dispatch.machine %}Units{% else %}Quantity{% endif %}</div>
-      <div style="font-size:24px;font-weight:800;">{% if dispatch.machine %}{{ dispatch.machine_count }}{% else %}{% with component=components.first %}{{ component.quantity_consumed|floatformat:2 }} {{ component.unit_snapshot }}{% endwith %}{% endif %}</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Units</div>
+      <div style="font-size:24px;font-weight:800;">{{ dispatch.machine_count }}</div>
     </div>
+    {% endif %}
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--sgi-text-muted);margin-bottom:4px;">Date</div>
       <div style="font-size:14px;font-weight:600;">{{ dispatch.dispatch_date|date:"d M Y, h:i A" }}</div>
@@ -37,9 +46,7 @@
       <div style="font-size:14px;">
         {% if dispatch.dispatched_by %}
           {{ dispatch.dispatched_by.get_full_name|default:dispatch.dispatched_by.username }}
-        {% else %}
-          —
-        {% endif %}
+        {% else %}—{% endif %}
       </div>
     </div>
   </div>
@@ -73,6 +80,7 @@
       <thead>
         <tr>
           <th>#</th>
+          <th>Group</th>
           <th>Item</th>
           <th>Quantity Consumed</th>
         </tr>
@@ -81,6 +89,13 @@
         {% for c in components %}
         <tr>
           <td>{{ forloop.counter }}</td>
+          <td>
+            {% if c.group_label %}
+              <span style="font-size:11px;background:var(--sgi-primary-bg);color:var(--sgi-primary);padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap;">
+                {{ c.group_label }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
           <td>
             <a href="{% url 'sgierp:item_detail' c.item.id %}" style="color:var(--sgi-primary);font-weight:600;">
               {{ c.item.code }}
@@ -91,7 +106,7 @@
         </tr>
         {% endfor %}
       </tbody>
-      <tfoot><tr><th colspan="2">Total Quantity</th><th>{{ components_quantity_total|floatformat:2 }}</th></tr></tfoot>
+      <tfoot><tr><th colspan="3">Total Quantity</th><th>{{ components_quantity_total|floatformat:2 }}</th></tr></tfoot>
     </table>
     {% else %}
     <div class="sgi-empty" style="padding:30px;">
@@ -101,4 +116,3 @@
   </div>
 </div>
 {% endblock %}
-

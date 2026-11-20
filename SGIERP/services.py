@@ -442,6 +442,135 @@ def delete_dispatch(dispatch_id, deleted_by=None):
     dispatch.delete()
 
 
+@transaction.atomic
+def dispatch_mixed(cart_entries, customer_name='', dispatch_date=None,
+                   invoice_reference='', remarks='', dispatched_by=None):
+    """
+    Dispatch a mixed cart of products (machines) and/or standalone items
+    in a single atomic transaction.
+
+    cart_entries: list of dicts, each either:
+        {'type': 'machine', 'machine_id': int, 'count': int}
+        {'type': 'item',    'item_id':    int, 'quantity': Decimal}
+
+    Returns the MachineDispatch object (machine=None for mixed/item-only dispatches,
+    or the single machine if only one machine with no items).
+    """
+    if not cart_entries:
+        raise ValidationError("Cart is empty. Add at least one product or item.")
+
+    completed = get_completed_process()
+    if not completed:
+        raise ValidationError("No Completed process configured. Cannot dispatch.")
+
+    dispatch_date = dispatch_date or timezone.now()
+
+    # ---- Phase 1: Validate entire cart, build consumption plan ----
+    consumption_plan = []  # list of (item, needed, process_entry, group_label)
+    single_machine = None   # set if exactly one machine entry and no items
+    machine_count_for_single = 1
+
+    machine_entries = [e for e in cart_entries if e['type'] == 'machine']
+    item_entries    = [e for e in cart_entries if e['type'] == 'item']
+
+    if len(machine_entries) == 1 and not item_entries:
+        single_machine_entry = machine_entries[0]
+        single_machine = Machine.objects.get(id=single_machine_entry['machine_id'], is_active=True)
+        machine_count_for_single = single_machine_entry['count']
+
+    for entry in cart_entries:
+        if entry['type'] == 'machine':
+            machine_id = entry['machine_id']
+            count = entry['count']
+            if count < 1:
+                raise ValidationError("Machine count must be at least 1.")
+            machine = Machine.objects.get(id=machine_id, is_active=True)
+            bom_items = machine.bom_items.select_related('item').all()
+            if not bom_items.exists():
+                raise ValidationError(f"Machine {machine.code} has no BOM. Cannot dispatch.")
+            group_label = f"Machine: {machine.code} — {machine.name} ({count}×)"
+            for bom_entry in bom_items:
+                item = bom_entry.item
+                needed = bom_entry.quantity_required * count
+                process_entry = ItemProcess.objects.select_for_update().filter(
+                    item=item, process=completed,
+                ).first()
+                available = process_entry.quantity if process_entry else 0
+                if available < needed:
+                    raise ValidationError(
+                        f"Insufficient completed stock for {item.code} - {item.name} "
+                        f"(needed for {machine.code}). Required: {needed}, Available: {available}"
+                    )
+                consumption_plan.append((item, needed, process_entry, group_label))
+
+        elif entry['type'] == 'item':
+            item_id = entry['item_id']
+            quantity = entry['quantity']
+            if quantity <= 0:
+                raise ValidationError("Item quantity must be greater than zero.")
+            item = Item.objects.get(id=item_id, is_active=True)
+            group_label = f"Item: {item.code} — {item.name}"
+            process_entry = ItemProcess.objects.select_for_update().filter(
+                item=item, process=completed,
+            ).first()
+            available = process_entry.quantity if process_entry else 0
+            if available < quantity:
+                raise ValidationError(
+                    f"Insufficient completed stock for {item.code} - {item.name}. "
+                    f"Required: {quantity}, Available: {available}"
+                )
+            consumption_plan.append((item, quantity, process_entry, group_label))
+
+    # ---- Phase 2: Create dispatch header ----
+    dispatch = MachineDispatch.objects.create(
+        machine=single_machine,
+        machine_count=machine_count_for_single if single_machine else 1,
+        customer_name=customer_name,
+        dispatch_date=dispatch_date,
+        invoice_reference=invoice_reference,
+        dispatched_by=dispatched_by,
+        remarks=remarks,
+    )
+
+    # ---- Phase 3: Consume stock ----
+    for item, needed, process_entry, group_label in consumption_plan:
+        source_assignee = process_entry.assigned_to if process_entry else None
+        DispatchComponent.objects.create(
+            dispatch=dispatch,
+            item=item,
+            source_entry=process_entry,
+            quantity_consumed=needed,
+            item_code_snapshot=item.code,
+            item_name_snapshot=item.name,
+            unit_snapshot=item.unit,
+            group_label=group_label,
+        )
+        process_entry.quantity = F('quantity') - needed
+        process_entry.save(update_fields=['quantity', 'updated_at'])
+        process_entry.refresh_from_db()
+
+        StockHistory.objects.create(
+            item=item,
+            from_process=completed,
+            to_process=completed,
+            quantity=needed,
+            movement_type='dispatch',
+            from_assignee=source_assignee,
+            to_assignee=None,
+            item_code_snapshot=item.code,
+            item_name_snapshot=item.name,
+            unit_snapshot=item.unit,
+            from_process_name=completed.name,
+            to_process_name='Dispatched',
+            from_assignee_name=source_assignee.name if source_assignee else '',
+            to_assignee_name='',
+            performed_by=dispatched_by,
+            remarks=f'Dispatched — {group_label}',
+        )
+
+    return dispatch
+
+
 # ============================================================
 # DASHBOARD AGGREGATES
 # ============================================================
