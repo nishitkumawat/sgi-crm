@@ -23,7 +23,7 @@
 </div>
 {% else %}
 <div class="sgi-content-scrollable">
-  <div class="sgi-card">
+  <div class="sgi-card has-mobile-search">
     <div class="sgi-card-header">
       <div class="sgi-card-title">
         <div class="card-icon"><i class="bi bi-check-circle-fill"></i></div>
@@ -34,6 +34,9 @@
           {% include 'sgierp/components/export_menu.html' with table_id='completedTable' filename='completed_stock' title='Completed Stock' %}
         </div>
         <div class="sgi-card-actions-primary">
+          <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-outline">
+            <i class="bi bi-plus-lg"></i> Add Stock
+          </a>
           <a href="{% url 'sgierp:stock_move' %}" class="btn-sgi btn-sgi-primary">
             <i class="bi bi-arrow-left-right"></i> Move Stock
           </a>
@@ -56,6 +59,9 @@
           <i class="bi bi-x"></i> Clear
         </a>
         {% endif %}
+        <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-primary mobile-action-btn" title="Add Stock">
+          <i class="bi bi-plus-lg"></i>
+        </a>
       </form>
     </div>
 
@@ -118,4 +124,22 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<style>
+@media (max-width: 768px) {
+  .filter-form .sgi-select,
+  .filter-form button[type="submit"],
+  .filter-form a.btn-sgi-outline {
+    display: none !important;
+  }
+  .filter-form .sgi-input-group {
+    flex: 1 1 100% !important;
+  }
+  .filter-form {
+    flex-wrap: wrap !important;
+  }
+}
+</style>
 {% endblock %}

@@ -492,10 +492,28 @@ def inventory_list(request):
 def add_stock(request):
     """Add initial stock to an existing catalog item."""
     user = get_sgi_user(request)
-    items = Item.objects.filter(is_active=True).order_by('code')
+    items = Item.objects.filter(is_active=True).only(
+        'id', 'code', 'name', 'unit', 'image'
+    ).order_by('code')
     processes = Process.objects.filter(is_active=True).order_by('order', 'name')
     assignees = Assignee.objects.filter(is_active=True).order_by('name')
     completed = get_completed_process()
+
+    # Build a map: item_id -> list of {process_name, quantity, unit}
+    # Only fetch entries with actual stock (quantity > 0) to keep payload small
+    stock_entries = ItemProcess.objects.filter(quantity__gt=0).values(
+        'item_id', 'process__name', 'quantity', 'item__unit'
+    )
+    item_stock_map = {}
+    for entry in stock_entries:
+        iid = entry['item_id']
+        if iid not in item_stock_map:
+            item_stock_map[iid] = []
+        item_stock_map[iid].append({
+            'process': entry['process__name'],
+            'qty': float(entry['quantity']),
+            'unit': entry['item__unit'],
+        })
 
     if request.method == 'POST':
         item_id = request.POST.get('item_id')
@@ -542,12 +560,16 @@ def add_stock(request):
         except (ValueError, Item.DoesNotExist):
             pass
 
+    import json as _json
+    item_stock_map_json = _json.dumps(item_stock_map)
+
     context = {
         'items': items,
         'processes': processes,
         'assignees': assignees,
         'selected_item': selected_item,
         'completed_process': completed,
+        'item_stock_map_json': item_stock_map_json,
         'page_title': 'Add Stock',
     }
     return render(request, 'sgierp/inventory/add_stock.html', context)
@@ -841,7 +863,9 @@ def item_detail(request, item_id):
 def stock_move_view(request):
     """Move stock from one process to another."""
     user = get_sgi_user(request)
-    items = Item.objects.filter(is_active=True).order_by('code')
+    items = Item.objects.filter(is_active=True).only(
+        'id', 'code', 'name', 'unit', 'image'
+    ).order_by('code')
     # Get all processes including Completed, regardless of active status
     processes = list(Process.objects.all().order_by('order', 'name'))
     assignees = Assignee.objects.filter(is_active=True).order_by('name')
@@ -879,16 +903,22 @@ def stock_move_view(request):
         except (ValueError, Process.DoesNotExist):
             pass
 
-    # Include all process stages so completed and rejected stock can be reprocessed.
-    items_with_stock = []
-    for item in items:
-        stock_entries = item.process_entries.filter(
-            quantity__gt=0
-        ).select_related('process', 'assigned_to')
-        items_with_stock.append({
-            'item': item,
-            'stock_entries': stock_entries,
-        })
+    # Single query: fetch all stock entries with quantity > 0, grouped by item.
+    # This replaces the N+1 loop (one DB query per item) with a single bulk query.
+    from collections import defaultdict
+    all_stock_entries = ItemProcess.objects.filter(
+        quantity__gt=0
+    ).select_related('item', 'process', 'assigned_to').order_by('item__code')
+    stock_map = defaultdict(list)
+    for entry in all_stock_entries:
+        stock_map[entry.item_id].append(entry)
+
+    # Build items_with_stock: only items that actually have stock, no extra queries.
+    items_with_stock = [
+        {'item': item, 'stock_entries': stock_map.get(item.id, [])}
+        for item in items
+        if stock_map.get(item.id)
+    ]
 
     if request.method == 'POST':
         item_id = request.POST.get('item_id')

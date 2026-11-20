@@ -272,6 +272,7 @@ const itemsData = [
   { id: {{ item.id }}, code: "{{ item.code|escapejs }}", name: "{{ item.name|escapejs }}", unit: "{{ item.get_unit_display|escapejs }}", imageUrl: "{% if item.image %}{{ item.image.url|escapejs }}{% endif %}" },
   {% endfor %}
 ];
+const itemStockMap = {{ item_stock_map_json|safe }};
 
 const processesData = [
   {% for p in processes %}
@@ -307,6 +308,14 @@ function showItemSuggestions(filterValue = '') {
   filtered.forEach(item => {
     const div = document.createElement('div');
     div.className = 'suggestion-item item-suggestion';
+    const stockEntries = (itemStockMap[item.id] || []);
+    const stockHtml = stockEntries.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">` +
+        stockEntries.map(s => {
+          const qty = Number.isInteger(s.qty) ? s.qty : parseFloat(s.qty.toFixed(2));
+          return `<span style="font-size:10px;background:var(--sgi-primary-bg,#e8f0fe);color:var(--sgi-primary);padding:1px 6px;border-radius:4px;white-space:nowrap;">${qty}&nbsp;${s.unit} @ ${s.process}</span>`;
+        }).join('') + `</div>`
+      : '';
     div.innerHTML = `
       ${item.imageUrl 
         ? `<img src="${item.imageUrl}" class="suggestion-item-img" alt="${item.name}">` 
@@ -316,6 +325,7 @@ function showItemSuggestions(filterValue = '') {
         <div class="code">${item.code}</div>
         <div class="name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
         <div class="unit">${item.unit}</div>
+        ${stockHtml}
       </div>
     `;
     div.addEventListener('click', function() {
