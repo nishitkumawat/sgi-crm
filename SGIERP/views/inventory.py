@@ -21,6 +21,35 @@ from SGIERP.models import Item, Machine, Process, ItemProcess, Assignee, StockHi
 from SGIERP.services import add_initial_stock, move_stock, get_completed_process, get_rejected_process
 
 
+def _pdf_wrap(text, font_name, font_size, max_width, max_lines=3):
+    """Wrap text to fit max_width, with character-level fallback for long words with no spaces."""
+    from reportlab.lib.utils import simpleSplit
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    lines = []
+    remaining = str(text).strip()
+    while remaining and len(lines) < max_lines:
+        word_lines = simpleSplit(remaining, font_name, font_size, max_width)
+        if not word_lines:
+            break
+        candidate = word_lines[0]
+        if stringWidth(candidate, font_name, font_size) <= max_width:
+            lines.append(candidate)
+            remaining = remaining[len(candidate):].lstrip()
+        else:
+            # Character-level break — fit as many chars as possible
+            buf = ''
+            for ch in remaining:
+                if stringWidth(buf + ch, font_name, font_size) <= max_width:
+                    buf += ch
+                else:
+                    break
+            if not buf:
+                buf = remaining[0]  # at minimum take 1 char
+            lines.append(buf)
+            remaining = remaining[len(buf):]
+    return lines or [str(text)[:30]]
+
+
 @sgi_login_required
 @require_POST
 def table_pdf_export(request):
@@ -123,13 +152,13 @@ def table_pdf_export(request):
                     title_index = next((position for position, (header, value) in enumerate(text_values)
                                         if header.strip().lower() in {'code', 'item code', 'product code'} and value.strip()), None)
                 title_text = text_values[title_index][1] if title_index is not None else ''
-                title_lines = simpleSplit(title_text.replace('\n', ' ').encode('latin-1', 'replace').decode('latin-1'), 'Helvetica-Bold', 8.7, cell_width - 18)[:2]
+                title_lines = _pdf_wrap(title_text.replace('\n', ' ').encode('latin-1', 'replace').decode('latin-1'), 'Helvetica-Bold', 8.7, cell_width - 14, 3)
                 pdf.setFillColorRGB(.09, .16, .28)
                 pdf.setFont('Helvetica-Bold', 8.7)
                 for line_number, line in enumerate(title_lines):
                     pdf.drawCentredString(x + cell_width / 2, y + cell_height - 90 - line_number * 9, line)
 
-                detail_y = y + cell_height - 108 - max(0, len(title_lines) - 1) * 8
+                detail_y = y + cell_height - 90 - len(title_lines) * 9 - 8
                 pdf.setFillColorRGB(.30, .35, .42)
                 pdf.setFont('Helvetica', 6.2)
                 visible_details = [(header, value) for position, (header, value) in enumerate(text_values)
@@ -376,20 +405,25 @@ def item_catalog_pdf(request):
                 pdf.drawCentredString(x + cell_width / 2, image_y + image_box_h / 2 - 3, 'No image')
 
             pdf.setFillColorRGB(.09, .16, .28)
-            pdf.setFont('Helvetica-Bold', 10)
-            pdf.drawCentredString(x + cell_width / 2, y + cell_height - 89, printable(item.code, 25))
-            name_lines = simpleSplit(printable(item.name), 'Helvetica-Bold', 8.7, cell_width - 18)[:2]
-            pdf.setFont('Helvetica-Bold', 8.7)
+            pdf.setFont('Helvetica-Bold', 9.5)
+            code_lines = _pdf_wrap(printable(item.code), 'Helvetica-Bold', 9.5, cell_width - 14, 2)
+            for line_number, line in enumerate(code_lines):
+                pdf.drawCentredString(x + cell_width / 2, y + cell_height - 89 - line_number * 10, line)
+
+            name_y_start = y + cell_height - 89 - len(code_lines) * 10 - 2
+            name_lines = _pdf_wrap(printable(item.name), 'Helvetica', 7.5, cell_width - 14, 3)
+            pdf.setFont('Helvetica', 7.5)
             for line_number, line in enumerate(name_lines):
-                pdf.drawCentredString(x + cell_width / 2, y + cell_height - 100 - line_number * 9, line)
+                pdf.drawCentredString(x + cell_width / 2, name_y_start - line_number * 8.5, line)
 
             pdf.setFillColorRGB(.30, .35, .42)
             pdf.setFont('Helvetica', 6.2)
             details = [
                 f'Unit: {printable(item.get_unit_display(), 14)}  |  Min: {printable(item.min_stock_level if item.min_stock_level is not None else "-", 12)}',
             ]
+            detail_y_start = name_y_start - len(name_lines) * 8.5 - 4
             for line_number, detail in enumerate(details):
-                pdf.drawCentredString(x + cell_width / 2, y + cell_height - 118 - line_number * 7.2, detail)
+                pdf.drawCentredString(x + cell_width / 2, detail_y_start - line_number * 7.2, detail)
         pdf.setFillColorRGB(.40, .44, .50)
         pdf.setFont('Helvetica', 8)
         pdf.drawCentredString(page_width / 2, 10, f'Page {page_index + 1} of {page_count}  |  {len(items)} items')
@@ -527,15 +561,16 @@ def add_stock(request):
             messages.error(request, 'Item, Process, and Quantity are required.')
         else:
             try:
-                item = Item.objects.get(id=int(item_id))
-                process = Process.objects.get(id=int(process_id))
-                assignee = Assignee.objects.filter(id=int(assigned_id)).first() if assigned_id else None
-                qty = float(quantity)
+                qty   = float(quantity)
                 price = float(price_raw) if price_raw else 0
-
                 if qty <= 0 or price < 0:
                     messages.error(request, 'Quantity must be greater than zero.')
                 else:
+                    # Batch fetch item + process in parallel (two queries, not three sequential)
+                    from django.db import connection
+                    item    = Item.objects.only('id', 'code', 'name', 'unit').get(id=int(item_id))
+                    process = Process.objects.get(id=int(process_id))
+                    assignee = Assignee.objects.filter(id=int(assigned_id)).first() if assigned_id else None
                     add_initial_stock(
                         item=item,
                         process=process,

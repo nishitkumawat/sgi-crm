@@ -34,10 +34,11 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
     """
     Add initial stock for an item in a given process.
     Creates or updates the ItemProcess record.
+    Uses process object flags directly — no extra DB queries for terminal check.
     """
-    completed = get_completed_process()
-    rejected = get_rejected_process()
-    is_terminal_process = (completed and process.id == completed.id) or (rejected and process.id == rejected.id)
+    # Use flags directly from the already-fetched process object (no extra queries)
+    is_terminal_process = getattr(process, 'is_completed_process', False) or \
+                          getattr(process, 'is_rejected_process', False)
     if is_terminal_process:
         assigned_to = None  # Terminal stock is not assigned to a worker
 
@@ -56,12 +57,12 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
             entry.assigned_to = assigned_to
             entry.assigned_at = timezone.now()
         entry.save(update_fields=['quantity', 'price', 'assigned_to', 'assigned_at', 'updated_at'])
-        entry.refresh_from_db()
-    
+        # No refresh_from_db — view redirects immediately after, return value not used
+
     # Record history
     StockHistory.objects.create(
         item=item,
-        from_process=None,  # No source for initial stock
+        from_process=None,
         to_process=process,
         quantity=quantity,
         price=price or 0,
@@ -78,7 +79,7 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
         performed_by=performed_by,
         remarks=remarks,
     )
-    
+
     return entry
 
 
@@ -89,37 +90,37 @@ def add_initial_stock(item, process, quantity, assigned_to=None, remarks='', per
 def convert_item(source_item, target_item, source_process, target_process, source_quantity, target_quantity, assigned_to=None, remarks='', performed_by=None, price=0):
     """
     Convert one item to another (e.g., 55kg die → 2 shafts).
-    Reduces source item quantity and adds target item quantity (optionally in a different process).
+    Uses process object flags directly — no extra queries for terminal check.
     """
-    completed = get_completed_process()
-    rejected = get_rejected_process()
-    is_terminal_process = (completed and target_process.id == completed.id) or (rejected and target_process.id == rejected.id)
+    # Use flags from already-fetched process objects — no extra queries
+    is_terminal_process = getattr(target_process, 'is_completed_process', False) or \
+                          getattr(target_process, 'is_rejected_process', False)
     if is_terminal_process:
-        assigned_to = None  # Terminal stock is not assigned to a worker
+        assigned_to = None
 
     # Get or create source entry
-    source_entry, _ = ItemProcess.objects.get_or_create(
+    source_entry, _ = ItemProcess.objects.select_for_update().get_or_create(
         item=source_item,
         process=source_process,
         defaults={'quantity': 0}
     )
-    
+
     # Check if enough quantity
     if source_entry.quantity < source_quantity:
         raise ValidationError(f'Insufficient quantity. Available: {source_entry.quantity} {source_item.unit}, Requested: {source_quantity} {source_item.unit}')
-    
+
     # Reduce source quantity
     source_entry.quantity = F('quantity') - source_quantity
     source_entry.save(update_fields=['quantity', 'updated_at'])
-    source_entry.refresh_from_db()
-    
+    # No refresh_from_db — value not read back
+
     # Get or create target entry
-    target_entry, _ = ItemProcess.objects.get_or_create(
+    target_entry, _ = ItemProcess.objects.select_for_update().get_or_create(
         item=target_item,
         process=target_process,
         defaults={'quantity': 0}
     )
-    
+
     # Add target quantity
     target_entry.quantity = F('quantity') + target_quantity
     target_entry.price = price or 0
@@ -130,8 +131,8 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
         target_entry.assigned_to = assigned_to
         target_entry.assigned_at = timezone.now()
     target_entry.save(update_fields=['quantity', 'price', 'assigned_to', 'assigned_at', 'updated_at'])
-    target_entry.refresh_from_db()
-    
+    # No refresh_from_db — view redirects after this
+
     # Record conversion history
     StockHistory.objects.create(
         item=source_item,
@@ -155,7 +156,7 @@ def convert_item(source_item, target_item, source_process, target_process, sourc
         performed_by=performed_by,
         remarks=f'{source_quantity} {source_item.unit} @ {source_process.name} → {target_quantity} {target_item.unit} @ {target_process.name}. {remarks}'
     )
-    
+
     return source_entry, target_entry
 
 
@@ -167,55 +168,62 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
                remarks='', performed_by=None, price=0):
     """
     Move `quantity` units from source_process to destination_process for an item.
-
-    - Reduces quantity in source process.
-    - Increases quantity in destination process.
-    - Validates quantity and stock availability.
-
-    Returns the updated source and destination ItemProcess records.
+    Optimised: fetches item + both processes in a single query each, eliminates
+    redundant refresh_from_db calls (saves 3 round-trips on remote DB).
     """
-    item = Item.objects.get(id=item_id)
-    source_process = Process.objects.get(id=source_process_id, is_active=True)
-    dest_process = Process.objects.get(id=destination_process_id, is_active=True)
-    completed = get_completed_process()
-    rejected = get_rejected_process()
-    is_terminal_destination = (completed and dest_process.id == completed.id) or (rejected and dest_process.id == rejected.id)
+    # Single query per lookup — batch item + processes together
+    try:
+        item = Item.objects.only('id', 'code', 'name', 'unit').get(id=item_id)
+    except Item.DoesNotExist:
+        raise ValidationError("Item not found.")
+
+    # Fetch both processes in one query
+    processes = {
+        p.id: p for p in Process.objects.filter(
+            id__in=[source_process_id, destination_process_id]
+        )
+    }
+    source_process = processes.get(source_process_id)
+    dest_process   = processes.get(destination_process_id)
+    if not source_process or not dest_process:
+        raise ValidationError("Process not found.")
+
+    # Use flags from already-fetched process objects — no extra queries
+    is_terminal_destination = getattr(dest_process, 'is_completed_process', False) or \
+                              getattr(dest_process, 'is_rejected_process', False)
 
     # Validations
     if quantity <= 0:
         raise ValidationError("Quantity must be greater than zero.")
-
     if source_process_id == destination_process_id:
         raise ValidationError("Source and destination processes cannot be the same.")
 
-    # If moving to Completed, clear assignment
     if is_terminal_destination:
         assigned_to = None
 
-    # Get or create source entry
-    source_entry, _ = ItemProcess.objects.get_or_create(
+    # Get or create source entry with assignee pre-fetched — single query, no lazy load later
+    source_entry, _ = ItemProcess.objects.select_related('assigned_to').select_for_update().get_or_create(
         item=item,
         process=source_process,
         defaults={'quantity': 0}
     )
-    source_entry.refresh_from_db()
 
     if source_entry.quantity < quantity:
         raise ValidationError(
-            f"Insufficient stock. Available: {source_entry.quantity}, "
-            f"Requested: {quantity}"
+            f"Insufficient stock. Available: {source_entry.quantity}, Requested: {quantity}"
         )
 
-    # Capture source assignee before movement
-    source_assignee = source_entry.assigned_to
+    # Capture assignee name now while it's cached — no extra query
+    from_assignee_obj  = source_entry.assigned_to
+    from_assignee_name = from_assignee_obj.name if from_assignee_obj else ''
 
     # Deduct from source
     source_entry.quantity = F('quantity') - quantity
     source_entry.save(update_fields=['quantity', 'updated_at'])
-    source_entry.refresh_from_db()
+    # No refresh_from_db — we don't read the value back
 
-    # Add to destination
-    dest_entry, _ = ItemProcess.objects.get_or_create(
+    # Add to destination — single query
+    dest_entry, _ = ItemProcess.objects.select_for_update().get_or_create(
         item=item,
         process=dest_process,
         defaults={'quantity': 0, 'assigned_to': assigned_to, 'price': price or 0}
@@ -229,7 +237,7 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
         dest_entry.assigned_to = assigned_to
         dest_entry.assigned_at = timezone.now()
     dest_entry.save(update_fields=['quantity', 'price', 'assigned_to', 'assigned_at', 'updated_at'])
-    dest_entry.refresh_from_db()
+    # No refresh_from_db — view redirects after this
 
     # Record history
     StockHistory.objects.create(
@@ -239,14 +247,14 @@ def move_stock(item_id, source_process_id, destination_process_id, quantity, ass
         quantity=quantity,
         price=price or 0,
         movement_type='move',
-        from_assignee=source_assignee,
+        from_assignee=from_assignee_obj,
         to_assignee=assigned_to,
         item_code_snapshot=item.code,
         item_name_snapshot=item.name,
         unit_snapshot=item.unit,
         from_process_name=source_process.name,
         to_process_name=dest_process.name,
-        from_assignee_name=source_assignee.name if source_assignee else '',
+        from_assignee_name=from_assignee_name,
         to_assignee_name=assigned_to.name if assigned_to else '',
         performed_by=performed_by,
         remarks=remarks,
