@@ -1,0 +1,203 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<a href="{% url 'sgierp:planning_list' %}" class="breadcrumb-parent">Planning</a>
+<span class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></span>
+<span class="page-title">{{ page_title }}</span>
+{% endblock %}
+
+{% block content %}
+<style>
+  .plan-row { display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sgi-card-bg);border:1px solid var(--sgi-border);border-radius:8px;margin-bottom:6px;cursor:grab; }
+  .plan-row:active { cursor:grabbing; }
+  .plan-row-drag { color:var(--sgi-text-muted);flex-shrink:0;font-size:18px; }
+  .plan-row-num { flex-shrink:0;width:22px;text-align:center;font-size:12px;color:var(--sgi-text-muted);font-weight:700; }
+  .plan-row-name { flex:1;min-width:0;font-weight:600;font-size:13px;overflow-wrap:anywhere; }
+  .plan-row-code { font-size:11px;color:var(--sgi-text-muted); }
+  .plan-row-qty { flex-shrink:0;width:68px; }
+  .plan-row-remove { flex-shrink:0;cursor:pointer;color:var(--sgi-danger);background:none;border:none;padding:4px;font-size:16px;line-height:1; }
+</style>
+
+<form method="POST" id="planForm">
+{% csrf_token %}
+<input type="hidden" name="items_json" id="itemsJson">
+
+<div class="sgi-card" style="margin-bottom:20px;">
+  <div class="sgi-card-header"><div class="sgi-card-title"><div class="card-icon"><i class="bi bi-info-circle"></i></div>Plan Details</div></div>
+  <div class="sgi-card-body" style="display:flex;flex-direction:column;gap:14px;">
+    <div>
+      <label class="sgi-label">Plan Name <span style="color:var(--sgi-danger);">*</span></label>
+      <input type="text" class="sgi-input" name="name" value="{{ plan.name|default:'' }}" placeholder="e.g. November Production Run" required maxlength="200">
+    </div>
+    <div>
+      <label class="sgi-label">Description</label>
+      <textarea class="sgi-input" name="description" rows="2" placeholder="Optional notes...">{{ plan.description|default:'' }}</textarea>
+    </div>
+  </div>
+</div>
+
+<div class="sgi-card" style="margin-bottom:20px;">
+  <div class="sgi-card-header">
+    <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-list-ol"></i></div>Products (in priority order)</div>
+  </div>
+  <div class="sgi-card-body">
+    <p style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:12px;">
+      <i class="bi bi-info-circle"></i> Add products in the order they should be fulfilled. Drag <i class="bi bi-grip-vertical"></i> to reorder. Same product can appear multiple times.
+    </p>
+
+    <!-- Add product row -->
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:200px;">
+        <label class="sgi-label">Product</label>
+        <select class="sgi-input" id="addMachineSelect">
+          <option value="">— Select product —</option>
+          {% for m in machines %}
+          <option value="{{ m.id }}" data-code="{{ m.code }}" data-name="{{ m.name }}">{{ m.code }} — {{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="width:90px;">
+        <label class="sgi-label">Qty</label>
+        <input type="number" class="sgi-input" id="addQtyInput" value="1" min="1" max="9999">
+      </div>
+      <button type="button" class="btn-sgi btn-sgi-primary btn-sgi-sm" onclick="addPlanRow()">
+        <i class="bi bi-plus-lg"></i> Add
+      </button>
+    </div>
+
+    <!-- Sortable list -->
+    <div id="planRows" style="min-height:40px;"></div>
+    <p id="planEmptyMsg" style="color:var(--sgi-text-muted);font-size:13px;text-align:center;padding:20px 0;display:none;">No products added yet. Add at least one above.</p>
+  </div>
+</div>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+  <button type="submit" class="btn-sgi btn-sgi-primary"><i class="bi bi-check-lg"></i> Save Plan</button>
+  <a href="{% if plan %}{% url 'sgierp:planning_detail' plan.id %}{% else %}{% url 'sgierp:planning_list' %}{% endif %}" class="btn-sgi btn-sgi-outline">Cancel</a>
+  {% if plan %}
+  <form method="POST" action="{% url 'sgierp:planning_delete' plan.id %}" style="margin:0;" data-delete-action data-delete-confirm="Delete plan '{{ plan.name }}'? This cannot be undone.">
+    {% csrf_token %}
+    <button type="submit" class="btn-sgi btn-sgi-outline" style="color:var(--sgi-danger);"><i class="bi bi-trash"></i> Delete Plan</button>
+  </form>
+  {% endif %}
+</div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const MACHINES = {{ machines|safe }};
+// existing items passed from view
+let planItems = JSON.parse('{{ items_json|escapejs }}');
+// track unique row IDs
+let _uid = 0;
+function uid() { return ++_uid; }
+
+function renderRows() {
+  const container = document.getElementById('planRows');
+  const emptyMsg = document.getElementById('planEmptyMsg');
+  container.innerHTML = '';
+  if (!planItems.length) { emptyMsg.style.display = 'block'; return; }
+  emptyMsg.style.display = 'none';
+  planItems.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'plan-row';
+    row.dataset.uid = item._uid;
+    row.draggable = true;
+    row.innerHTML = `
+      <span class="plan-row-drag"><i class="bi bi-grip-vertical"></i></span>
+      <span class="plan-row-num">${idx + 1}</span>
+      <div class="plan-row-name">
+        ${escHtml(item.machine_code)} <span class="plan-row-code">— ${escHtml(item.machine_name)}</span>
+      </div>
+      <input type="number" class="sgi-input plan-row-qty" value="${item.quantity}" min="1" max="9999"
+        onchange="updateQty(${item._uid}, this.value)" style="width:68px;">
+      <button type="button" class="plan-row-remove" onclick="removeRow(${item._uid})" title="Remove"><i class="bi bi-x-lg"></i></button>
+    `;
+    // drag events
+    row.addEventListener('dragstart', onDragStart);
+    row.addEventListener('dragover', onDragOver);
+    row.addEventListener('drop', onDrop);
+    row.addEventListener('dragend', onDragEnd);
+    container.appendChild(row);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function addPlanRow() {
+  const sel = document.getElementById('addMachineSelect');
+  const qtyInput = document.getElementById('addQtyInput');
+  const machineId = parseInt(sel.value);
+  const qty = Math.max(1, parseInt(qtyInput.value) || 1);
+  if (!machineId) { alert('Please select a product first.'); return; }
+  const opt = sel.options[sel.selectedIndex];
+  planItems.push({
+    _uid: uid(),
+    id: null,
+    machine_id: machineId,
+    machine_code: opt.dataset.code,
+    machine_name: opt.dataset.name,
+    quantity: qty,
+    completed_quantity: 0,
+  });
+  sel.value = '';
+  qtyInput.value = 1;
+  renderRows();
+}
+
+function removeRow(itemUid) {
+  planItems = planItems.filter(i => i._uid !== itemUid);
+  renderRows();
+}
+
+function updateQty(itemUid, val) {
+  const item = planItems.find(i => i._uid === itemUid);
+  if (item) item.quantity = Math.max(1, parseInt(val) || 1);
+}
+
+// --- Drag & drop ---
+let dragSrcUid = null;
+function onDragStart(e) {
+  dragSrcUid = parseInt(this.dataset.uid);
+  e.dataTransfer.effectAllowed = 'move';
+  this.style.opacity = '0.5';
+}
+function onDragEnd(e) { this.style.opacity = '1'; }
+function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function onDrop(e) {
+  e.preventDefault();
+  const targetUid = parseInt(this.dataset.uid);
+  if (dragSrcUid === targetUid) return;
+  const srcIdx = planItems.findIndex(i => i._uid === dragSrcUid);
+  const tgtIdx = planItems.findIndex(i => i._uid === targetUid);
+  if (srcIdx < 0 || tgtIdx < 0) return;
+  const [moved] = planItems.splice(srcIdx, 1);
+  planItems.splice(tgtIdx, 0, moved);
+  renderRows();
+}
+
+// --- Form submit ---
+document.getElementById('planForm').addEventListener('submit', function(e) {
+  if (!planItems.length) {
+    e.preventDefault();
+    alert('Please add at least one product to the plan.');
+    return;
+  }
+  const payload = planItems.map(item => ({
+    id: item.id,
+    machine_id: item.machine_id,
+    quantity: item.quantity,
+    completed_quantity: item.completed_quantity || 0,
+  }));
+  document.getElementById('itemsJson').value = JSON.stringify(payload);
+});
+
+// initialise existing items with uids
+planItems = planItems.map(item => ({ ...item, _uid: uid() }));
+renderRows();
+</script>
+{% endblock %}

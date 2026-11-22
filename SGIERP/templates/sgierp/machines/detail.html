@@ -18,12 +18,15 @@
   .machine-bom-view-table { width:100%;table-layout:fixed; }
   .machine-bom-view-table th:nth-child(1),.machine-bom-view-table td:nth-child(1) { width:4%; }
   .machine-bom-view-table th:nth-child(2),.machine-bom-view-table td:nth-child(2) { width:6%; }
-  .machine-bom-view-table th:nth-child(3),.machine-bom-view-table td:nth-child(3) { width:29%; }
-  .machine-bom-view-table th:nth-child(4),.machine-bom-view-table td:nth-child(4) { width:12%; }
-  .machine-bom-view-table th:nth-child(5),.machine-bom-view-table td:nth-child(5) { width:19%; }
-  .machine-bom-view-table th:nth-child(6),.machine-bom-view-table td:nth-child(6) { width:13%; }
-  .machine-bom-view-table th:nth-child(7),.machine-bom-view-table td:nth-child(7) { width:17%; }
+  .machine-bom-view-table th:nth-child(3),.machine-bom-view-table td:nth-child(3) { width:25%; }
+  .machine-bom-view-table th:nth-child(4),.machine-bom-view-table td:nth-child(4) { width:11%; }
+  .machine-bom-view-table th:nth-child(5),.machine-bom-view-table td:nth-child(5) { width:14%; }
+  .machine-bom-view-table th:nth-child(6),.machine-bom-view-table td:nth-child(6) { width:10%; }
+  .machine-bom-view-table th:nth-child(7),.machine-bom-view-table td:nth-child(7) { width:10%; }
+  .machine-bom-view-table th:nth-child(8),.machine-bom-view-table td:nth-child(8) { width:20%; }
   .machine-bom-view-table th,.machine-bom-view-table td { overflow-wrap:anywhere;word-break:normal; }
+  .unit-mini-bars { display:flex;gap:2px;flex-wrap:wrap;align-items:center;margin-top:3px; }
+  .unit-mini-bar { width:9px;height:9px;border-radius:2px;flex-shrink:0;background:var(--sgi-primary); }
   .machine-dispatch-table { width:100%; }
   @media (max-width: 768px) {
     .machine-detail-header-body { flex-wrap:wrap;gap:12px;padding:14px!important; }
@@ -127,6 +130,7 @@
           <th>Qty / Machine</th>
           <th>Completed Stock Available</th>
           <th>Stock Coverage</th>
+          <th>Units Possible</th>
           <th>Sufficient for 1 Unit?</th>
         </tr>
       </thead>
@@ -153,9 +157,27 @@
             <strong {% if entry.available_completed < entry.quantity_required %}class="insufficient"{% else %}class="sufficient"{% endif %}>
               {{ entry.available_completed|floatformat:2 }}
             </strong> {{ entry.item.unit }}
+            {% if entry.available_in_process > 0 %}
+            <div style="font-size:11px;color:#0284c7;font-weight:600;margin-top:2px;">
+              +{{ entry.available_in_process|floatformat:2 }} in process
+            </div>
+            {% endif %}
           </td>
           <td data-label="Stock Coverage">
             <strong {% if entry.coverage_percent < 100 %}class="insufficient"{% else %}class="sufficient"{% endif %}>{{ entry.coverage_percent|floatformat:0 }}%</strong>
+          </td>
+          <td data-label="Units Possible">
+            {% if entry.units_possible > 0 %}
+            <strong style="font-size:14px;">{{ entry.units_possible }}</strong>
+            <div class="unit-mini-bars">
+              {% for _ in entry.unit_bar_range %}
+              <div class="unit-mini-bar"></div>
+              {% endfor %}
+              {% if entry.unit_bar_overflow %}<span style="font-size:10px;color:var(--sgi-text-muted);">+{{ entry.units_possible|add:"-20" }}</span>{% endif %}
+            </div>
+            {% else %}
+            <span style="color:var(--sgi-danger);font-size:12px;">0</span>
+            {% endif %}
           </td>
           <td data-label="Sufficient for 1 Unit?">
             {% if entry.available_completed >= entry.quantity_required %}
@@ -167,7 +189,7 @@
         </tr>
         {% endfor %}
       </tbody>
-      <tfoot><tr><th colspan="3">Total</th><th>{{ bom_quantity_total|floatformat:2 }}</th><th>{{ available_completed_total|floatformat:2 }}</th><th colspan="2"></th></tr></tfoot>
+      <tfoot><tr><th colspan="3">Total</th><th>{{ bom_quantity_total|floatformat:2 }}</th><th>{{ available_completed_total|floatformat:2 }}</th><th colspan="3"></th></tr></tfoot>
     </table>
     {% else %}
     <div class="sgi-empty" style="padding:30px;">
@@ -184,29 +206,84 @@
   {% if total_count %}{% include 'sgierp/components/pagination.html' %}{% endif %}
 </div>
 
-<!-- Dispatch readiness and build estimate (second last section) -->
+<!-- Dispatch readiness and build estimate (multi-unit capacity) -->
 <div class="sgi-card" style="margin-bottom:20px;">
-  <div class="sgi-card-body" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
-    <div style="flex:1;min-width:220px;">
-      <div style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:8px;">
-        One Dispatch completed: {% if dispatch_readiness_percent is not None %}{{ dispatch_readiness_percent|floatformat:"-1" }}%{% else %}—{% endif %} to 100%
-        {% if dispatch_readiness_percent is not None and total_parts_required > 0 %}
-        <span style="font-size:12px;color:var(--sgi-text-muted);">({{ completed_parts_count|floatformat:"-2" }} / {{ total_parts_required|floatformat:"-2" }} parts)</span>
+  <div class="sgi-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div class="sgi-card-title">
+      <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
+      Material Readiness & Build Capacity
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--sgi-text-muted);">
+        <span style="display:inline-flex;align-items:center;gap:5px;">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--sgi-primary);"></span>
+          Completed
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:5px;">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#93c5fd;"></span>
+          In Process
+        </span>
+      </div>
+      <div style="font-size:13px;color:var(--sgi-text-muted);">
+        Whole products possible:
+        <strong style="font-size:16px;color:var(--sgi-primary);">{% if max_buildable is not None %}{{ max_buildable }}{% else %}—{% endif %}</strong>
+        {% if max_potential_buildable and max_buildable is not None and max_potential_buildable > max_buildable %}
+        <span style="font-size:12px;color:#0284c7;font-weight:600;margin-left:4px;">
+          (+{{ max_potential_buildable|add:"-"|add:max_buildable }} more with in-process)
+        </span>
         {% endif %}
       </div>
-      {% if dispatch_readiness_percent is not None %}
-      <div role="progressbar" aria-label="One dispatch material readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ dispatch_readiness_percent|floatformat:0 }}" style="height:10px;background:var(--sgi-border);border-radius:999px;overflow:hidden;">
-        <div style="height:100%;width:{{ dispatch_readiness_percent }}%;max-width:100%;background:{% if dispatch_readiness_percent >= 100 %}var(--sgi-success){% else %}var(--sgi-primary){% endif %};border-radius:999px;"></div>
+    </div>
+  </div>
+  <div class="sgi-card-body">
+    {% if unit_progress_bars %}
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      {% for u in unit_progress_bars %}
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+          <div>
+            <strong>Unit {{ u.unit_number }}</strong>:
+            <span style="font-weight:700;color:{% if u.completed_percent >= 100 %}var(--sgi-success){% else %}var(--sgi-primary){% endif %};">
+              {{ u.completed_percent|floatformat:1 }}%
+            </span> Completed
+            {% if u.in_process_percent > 0 %}
+            <span style="color:#0284c7;font-weight:600;font-size:12px;margin-left:4px;">
+              (+{{ u.in_process_percent|floatformat:1 }}% in process)
+            </span>
+            {% endif %}
+            to 100%
+            <span style="color:var(--sgi-text-muted);font-size:12px;margin-left:6px;">
+              ({{ u.completed_parts|floatformat:"-2" }} completed{% if u.in_process_parts > 0 %}, {{ u.in_process_parts|floatformat:"-2" }} in process{% endif %} / {{ total_parts_required|floatformat:"-2" }} parts)
+            </span>
+          </div>
+          <div style="font-size:12px;font-weight:600;">
+            {% if u.is_fully_completed %}
+            <span class="sgi-badge sgi-badge-green"><i class="bi bi-check-lg"></i> Ready to Dispatch</span>
+            {% elif u.is_fully_in_pipeline %}
+            <span class="sgi-badge sgi-badge-blue"><i class="bi bi-hourglass-split"></i> 100% in Pipeline</span>
+            {% else %}
+            <span style="color:var(--sgi-text-muted);">{{ u.total_percent|floatformat:1 }}% total</span>
+            {% endif %}
+          </div>
+        </div>
+        <!-- Segmented progress bar: solid completed + light in-process -->
+        <div role="progressbar" aria-label="Unit {{ u.unit_number }} readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ u.completed_percent|floatformat:0 }}"
+             style="height:12px;background:var(--sgi-border);border-radius:999px;overflow:hidden;display:flex;position:relative;">
+          {% if u.completed_percent > 0 %}
+          <div style="height:100%;width:{{ u.completed_percent }}%;background:{% if u.completed_percent >= 100 %}var(--sgi-success){% else %}var(--sgi-primary){% endif %};transition:width .3s;"
+               title="Completed: {{ u.completed_percent|floatformat:1 }}%"></div>
+          {% endif %}
+          {% if u.in_process_percent > 0 %}
+          <div style="height:100%;width:{{ u.in_process_percent }}%;background:#93c5fd;opacity:.9;transition:width .3s;"
+               title="In Process: {{ u.in_process_percent|floatformat:1 }}%"></div>
+          {% endif %}
+        </div>
       </div>
-      {% else %}
-      <span class="sgi-badge sgi-badge-gray">Add a bill of materials to calculate dispatch readiness</span>
-      {% endif %}
+      {% endfor %}
     </div>
-    <div style="flex:1;min-width:220px;">
-      <div style="font-size:13px;color:var(--sgi-text-muted);margin-bottom:6px;">Whole products possible from available stock</div>
-      <strong style="font-size:24px;">{% if max_buildable is not None %}{{ max_buildable }}{% else %}—{% endif %}</strong>
-      {% if max_buildable == 1 %}<span> product</span>{% elif max_buildable is not None %}<span> products</span>{% endif %}
-    </div>
+    {% else %}
+    <span class="sgi-badge sgi-badge-gray">Add a bill of materials to calculate dispatch readiness</span>
+    {% endif %}
   </div>
 </div>
 

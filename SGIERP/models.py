@@ -472,6 +472,49 @@ class ChallanItem(models.Model):
 
 
 # ============================================================
+# PRODUCTION PLAN
+# ============================================================
+class ProductionPlan(models.Model):
+    """Named production plan — an ordered list of product runs."""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='production_plans_created'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'sgi_production_plan'
+        verbose_name = 'Production Plan'
+        verbose_name_plural = 'Production Plans'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+
+class ProductionPlanItem(models.Model):
+    """One entry in a production plan — a product to run N times, in order."""
+    plan = models.ForeignKey(ProductionPlan, on_delete=models.CASCADE, related_name='items')
+    machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name='plan_items')
+    quantity = models.PositiveIntegerField(default=1, help_text='Number of units to produce')
+    order = models.PositiveIntegerField(default=0, help_text='Display/priority order (0 = highest)')
+    completed_quantity = models.PositiveIntegerField(default=0, help_text='Units already dispatched/produced')
+
+    class Meta:
+        db_table = 'sgi_production_plan_item'
+        verbose_name = 'Production Plan Item'
+        verbose_name_plural = 'Production Plan Items'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.plan.name} — {self.machine.code} ×{self.quantity} (order {self.order})"
+
+
+# ============================================================
 # ERP USER PROFILE (extends Django User)
 # ============================================================
 class ERPUserProfile(models.Model):

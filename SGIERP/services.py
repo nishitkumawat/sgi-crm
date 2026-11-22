@@ -576,6 +576,28 @@ def dispatch_mixed(cart_entries, customer_name='', dispatch_date=None,
             remarks=f'Dispatched — {group_label}',
         )
 
+    # ---- Phase 4: Remove/deduct dispatched machines from production planning queue ----
+    try:
+        from SGIERP.models import ProductionPlanItem
+        for m_entry in machine_entries:
+            mid = m_entry['machine_id']
+            remaining_to_deduct = int(m_entry['count'])
+            plan_items = ProductionPlanItem.objects.filter(machine_id=mid).order_by('order', 'id')
+            for p_item in plan_items:
+                if remaining_to_deduct <= 0:
+                    break
+                if remaining_to_deduct >= p_item.quantity:
+                    remaining_to_deduct -= p_item.quantity
+                    p_item.delete()
+                else:
+                    p_item.quantity -= remaining_to_deduct
+                    if p_item.completed_quantity > p_item.quantity:
+                        p_item.completed_quantity = p_item.quantity
+                    p_item.save(update_fields=['quantity', 'completed_quantity'])
+                    remaining_to_deduct = 0
+    except Exception:
+        pass
+
     return dispatch
 
 

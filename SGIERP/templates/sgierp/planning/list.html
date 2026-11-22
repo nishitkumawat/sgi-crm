@@ -1,0 +1,60 @@
+{% extends 'sgierp/base.html' %}
+{% block title %}Planning{% endblock %}
+{% block page_title %}Production Planning{% endblock %}
+{% block breadcrumb %}
+<span class="page-title">Planning</span>
+{% endblock %}
+
+{% block content %}
+<style>
+  .plan-card { border:1px solid var(--sgi-border);border-radius:12px;background:var(--sgi-card-bg);margin-bottom:16px;overflow:hidden;transition:box-shadow .15s; }
+  .plan-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.08); }
+  .plan-card-header { display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--sgi-border);flex-wrap:wrap; }
+  .plan-card-title { font-size:16px;font-weight:700;flex:1;min-width:0;overflow-wrap:anywhere; }
+  .plan-steps { display:flex;gap:6px;padding:12px 18px;flex-wrap:wrap;align-items:center; }
+  .plan-step-chip { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--sgi-primary-bg);color:var(--sgi-primary);border:1px solid var(--sgi-primary);white-space:nowrap; }
+  .plan-step-chip.done { background:#d1fae5;color:#065f46;border-color:#a7f3d0; }
+  .plan-step-arrow { color:var(--sgi-text-muted);font-size:12px; }
+</style>
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+  <h2 style="font-size:20px;font-weight:800;flex:1;">Production Plans</h2>
+  <a href="{% url 'sgierp:planning_create' %}" class="btn-sgi btn-sgi-primary btn-sgi-sm">
+    <i class="bi bi-plus-lg"></i> New Plan
+  </a>
+</div>
+
+{% if plans %}
+  {% for plan in plans %}
+  <div class="plan-card">
+    <div class="plan-card-header">
+      <div class="plan-card-title">
+        <a href="{% url 'sgierp:planning_detail' plan.id %}" style="color:inherit;text-decoration:none;">{{ plan.name }}</a>
+        {% if plan.is_active %}<span class="sgi-badge sgi-badge-green" style="margin-left:6px;">Active</span>{% endif %}
+      </div>
+      <span style="font-size:12px;color:var(--sgi-text-muted);">{{ plan.items.count }} product{{ plan.items.count|pluralize }}</span>
+      <a href="{% url 'sgierp:planning_detail' plan.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm"><i class="bi bi-eye"></i> View</a>
+      <a href="{% url 'sgierp:planning_edit' plan.id %}" class="btn-sgi btn-sgi-outline btn-sgi-sm"><i class="bi bi-pencil"></i> Edit</a>
+    </div>
+    <div class="plan-steps">
+      {% for item in plan.items.all %}
+        <a href="{% url 'sgierp:machine_detail' item.machine.id %}" class="plan-step-chip {% if item.completed_quantity >= item.quantity %}done{% endif %}" style="text-decoration:none;" title="View {{ item.machine.name }}">
+          {% if item.completed_quantity >= item.quantity %}<i class="bi bi-check-circle-fill"></i>{% endif %}
+          {{ item.machine.code }} ×{{ item.quantity }}
+        </a>
+        {% if not forloop.last %}<span class="plan-step-arrow">→</span>{% endif %}
+      {% empty %}
+        <span style="color:var(--sgi-text-muted);font-size:13px;">No products added yet.</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="sgi-empty" style="padding:60px 20px;">
+  <div style="font-size:48px;margin-bottom:12px;">📋</div>
+  <h4>No production plans yet</h4>
+  <p>Create your first plan to track production order and stock progress.</p>
+  <a href="{% url 'sgierp:planning_create' %}" class="btn-sgi btn-sgi-primary" style="margin-top:14px;"><i class="bi bi-plus-lg"></i> New Plan</a>
+</div>
+{% endif %}
+{% endblock %}

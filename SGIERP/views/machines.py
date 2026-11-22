@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
 from PIL import Image
@@ -342,14 +342,23 @@ def machine_detail(request, machine_id):
 
     # Use the full BOM for the build estimate, even when the table is filtered
     # or paginated. Stock is taken from the completed process, which is what
-    # dispatch consumes.
+    # dispatch consumes. Also fetch in-process stock (excluding completed and rejected).
     all_bom_items = list(machine.bom_items.select_related('item').all())
     available_by_item = {}
-    if completed:
+    in_process_by_item = {}
+    if completed and all_bom_items:
         available_by_item = dict(
             ItemProcess.objects.filter(
                 process=completed,
                 item_id__in=[entry.item_id for entry in all_bom_items],
+            ).values('item_id').order_by().annotate(total=Sum('quantity')).values_list('item_id', 'total')
+        )
+    if all_bom_items:
+        in_process_by_item = dict(
+            ItemProcess.objects.filter(
+                item_id__in=[entry.item_id for entry in all_bom_items],
+            ).exclude(
+                Q(process__is_completed_process=True) | Q(process__is_rejected_process=True)
             ).values('item_id').order_by().annotate(total=Sum('quantity')).values_list('item_id', 'total')
         )
 
@@ -357,27 +366,89 @@ def machine_detail(request, machine_id):
         int(float(available_by_item.get(entry.item_id) or 0) / float(entry.quantity_required))
         for entry in all_bom_items
     )
+    max_potential_buildable = None if not all_bom_items else min(
+        int((float(available_by_item.get(entry.item_id) or 0) + float(in_process_by_item.get(entry.item_id) or 0)) / float(entry.quantity_required))
+        for entry in all_bom_items
+    )
+
     total_parts_required = sum(float(entry.quantity_required) for entry in all_bom_items) if all_bom_items else 0
-    if not all_bom_items or total_parts_required <= 0:
+
+    # Calculate multi-unit progress bars (up to 10 units)
+    # Each bar represents 1 unit dispatch: dark fill = completed %, light fill = in-process %
+    unit_progress_bars = []
+    if all_bom_items and total_parts_required > 0:
+        # Determine how many units have parts in completed or in-process (up to 10)
+        max_units_to_check = 10
+        raw_unit_data = []
+        highest_unit_with_parts = 1
+
+        for u in range(1, max_units_to_check + 1):
+            comp_parts = 0.0
+            in_proc_parts = 0.0
+            for entry in all_bom_items:
+                req = float(entry.quantity_required)
+                comp = float(available_by_item.get(entry.item_id) or 0)
+                in_proc = float(in_process_by_item.get(entry.item_id) or 0)
+
+                # Completed portion for unit u
+                comp_for_unit = max(0.0, min(req, comp - (u - 1) * req))
+                # Total stock portion for unit u
+                total_stock = comp + in_proc
+                total_for_unit = max(0.0, min(req, total_stock - (u - 1) * req))
+                # In-process portion for unit u
+                in_proc_for_unit = max(0.0, total_for_unit - comp_for_unit)
+
+                comp_parts += comp_for_unit
+                in_proc_parts += in_proc_for_unit
+
+            comp_pct = min(100.0, max(0.0, (comp_parts / total_parts_required) * 100))
+            in_proc_pct = min(100.0 - comp_pct, max(0.0, (in_proc_parts / total_parts_required) * 100))
+            tot_pct = comp_pct + in_proc_pct
+
+            if (comp_parts > 0 or in_proc_parts > 0):
+                highest_unit_with_parts = u
+
+            raw_unit_data.append({
+                'unit_number': u,
+                'completed_percent': comp_pct,
+                'in_process_percent': in_proc_pct,
+                'total_percent': tot_pct,
+                'completed_parts': comp_parts,
+                'in_process_parts': in_proc_parts,
+                'is_fully_completed': comp_pct >= 99.99,
+                'is_fully_in_pipeline': tot_pct >= 99.99,
+            })
+
+        # Display up to highest unit with parts, or at least max_buildable, capped at 10 (minimum 1)
+        target_unit_count = max(1, min(10, max(highest_unit_with_parts, max_buildable or 0)))
+        unit_progress_bars = raw_unit_data[:target_unit_count]
+
+    # Legacy readiness for unit 1
+    if unit_progress_bars:
+        dispatch_readiness_percent = unit_progress_bars[0]['completed_percent']
+        completed_parts_count = unit_progress_bars[0]['completed_parts']
+    else:
         dispatch_readiness_percent = None
         completed_parts_count = 0
-    else:
-        completed_parts_count = sum(
-            min(float(available_by_item.get(entry.item_id) or 0), float(entry.quantity_required))
-            for entry in all_bom_items
-        )
-        dispatch_readiness_percent = min(100.0, max(0.0, (completed_parts_count / total_parts_required) * 100))
 
     enriched_bom = []
     available_completed_total = sum((available_by_item.get(entry.item_id) or 0 for entry in bom_items_qs), 0)
+    available_in_process_total = sum((in_process_by_item.get(entry.item_id) or 0 for entry in bom_items_qs), 0)
     for entry in bom_items:
         avail = available_by_item.get(entry.item_id) or 0
+        avail_in_proc = in_process_by_item.get(entry.item_id) or 0
         coverage_percent = (avail / entry.quantity_required * 100) if entry.quantity_required else 0
+        units_possible = int(float(avail) / float(entry.quantity_required)) if entry.quantity_required else 0
+        display_max = min(units_possible, 20) if units_possible else 0
         enriched_bom.append({
             'item': entry.item,
             'quantity_required': entry.quantity_required,
             'available_completed': avail,
+            'available_in_process': avail_in_proc,
             'coverage_percent': coverage_percent,
+            'units_possible': units_possible,
+            'unit_bar_range': range(1, display_max + 1),
+            'unit_bar_overflow': units_possible > 20,
         })
 
     context = {
@@ -385,6 +456,7 @@ def machine_detail(request, machine_id):
         'enriched_bom': enriched_bom,
         'bom_quantity_total': bom_quantity_total,
         'available_completed_total': available_completed_total,
+        'available_in_process_total': available_in_process_total,
         'dispatches': dispatches,
         'dispatch_total_count': dispatch_total_count,
         'page_title': f'{machine.code} - {machine.name}',
@@ -396,9 +468,11 @@ def machine_detail(request, machine_id):
         'total_count': total_count,
         'bom_search': bom_search,
         'max_buildable': max_buildable,
+        'max_potential_buildable': max_potential_buildable,
         'dispatch_readiness_percent': dispatch_readiness_percent,
         'total_parts_required': total_parts_required,
         'completed_parts_count': completed_parts_count,
+        'unit_progress_bars': unit_progress_bars,
     }
     return render(request, 'sgierp/machines/detail.html', context)
 

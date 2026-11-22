@@ -5,6 +5,7 @@ from SGIERP.views import (
     dashboard,
     table_pdf_export, item_catalog, item_catalog_pdf, inventory_list, item_create, item_edit, item_detail, item_delete, add_stock, inventory_entry_delete, stock_move_view, completed_stock, rejected_stock, stock_history, item_groups, process_wise_stock, assignee_wise_stock, process_history, assignee_history,
     machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete,
+    planning_view, planning_list, planning_create, planning_detail, planning_edit, planning_delete, planning_reorder, planning_mark_done, planning_add_item, planning_delete_item, planning_update_qty,
     dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete, dispatch_bom_preview,
     challan_list, challan_create, challan_detail, challan_print,
     settings_view, process_create_edit, process_delete, user_list, user_create_edit, assignee_create_edit, assignee_delete, save_erp_config, change_delete_passcode,
@@ -55,6 +56,18 @@ urlpatterns = [
     path('machines/<int:machine_id>/', machine_detail, name='machine_detail'),
     path('machines/<int:machine_id>/edit/', machine_edit, name='machine_edit'),
     path('machines/<int:machine_id>/delete/', machine_delete, name='machine_delete'),
+
+    # ---- Planning (Single Global Plan) ----
+    path('planning/', planning_view, name='planning_list'),
+    path('planning/add/', planning_add_item, name='planning_add_item'),
+    path('planning/item/<int:item_id>/delete/', planning_delete_item, name='planning_delete_item'),
+    path('planning/item/<int:item_id>/done/', planning_mark_done, name='planning_mark_done'),
+    path('planning/item/<int:item_id>/update-qty/', planning_update_qty, name='planning_update_qty'),
+    path('planning/reorder/', planning_reorder, name='planning_reorder'),
+    path('planning/new/', planning_create, name='planning_create'),
+    path('planning/<int:plan_id>/', planning_detail, name='planning_detail'),
+    path('planning/<int:plan_id>/edit/', planning_edit, name='planning_edit'),
+    path('planning/<int:plan_id>/delete/', planning_delete, name='planning_delete'),
 
     # ---- Dispatch ----
     path('dispatch/', dispatch_list, name='dispatch_list'),
