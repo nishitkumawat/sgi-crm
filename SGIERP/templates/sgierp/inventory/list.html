@@ -1,4 +1,5 @@
 {% extends 'sgierp/base.html' %}
+{% load sgi_tags %}
 {% block title %}Inventory{% endblock %}
 {% block page_title %}Inventory{% endblock %}
 
@@ -76,22 +77,22 @@
       <table class="sgi-table" id="inventoryTable">
         <thead>
           <tr>
-            <th style="width:48px;"></th>
-            <th style="width:48px;"></th>
+            <th style="width:36px;"></th>
+            <th style="width:36px;"></th>
             <th>Item Code</th>
             <th>Item Name</th>
             <th>Process</th>
             <th>Quantity</th>
-            <th>Price</th>
+            <!-- <th>Price</th> -->
             <th>Assigned To</th>
-            <th>Last Updated</th>
-            <th style="width:140px;"></th>
+            <th style="white-space:nowrap;">Updated</th>
+            <!-- <th style="width:140px;"></th> -->
           </tr>
         </thead>
         <tbody>
           {% for entry in entries %}
           <tr>
-            <td><span style="font-size:11px;color:var(--sgi-text-muted);font-family:monospace;">#{{ entry.id }}</span></td>
+            <!-- <td><span style="font-size:11px;color:var(--sgi-text-muted);font-family:monospace;">#{{ entry.id }}</span></td> -->
             <td>
               {% if entry.item.image %}
               <img src="{{ entry.item.image.url }}" class="item-image-thumb" alt="{{ entry.item.name }}">
@@ -109,7 +110,7 @@
             <td>
               <strong>{{ entry.quantity|floatformat:2 }}</strong> {{ entry.item.unit }}
             </td>
-            <td>{{ entry.price|floatformat:2 }}</td>
+            <!-- <td>{{ entry.price|floatformat:2 }}</td> -->
             <td>
               {% if entry.assigned_to %}
               <span style="color:var(--sgi-primary);">{{ entry.assigned_to.name }}</span>
@@ -119,8 +120,10 @@
             </td>
             <td>
               {% if entry.updated_at %}
-              <div style="font-size:12px;">{{ entry.updated_at|time:"h:i A" }} {{ entry.updated_at|date:"d M Y" }}</div>
-              <div style="font-size:10px;color:var(--sgi-text-muted);">{{ entry.updated_at|timesince }} ago</div>
+              <div style="font-size:10.5px;line-height:1.2;white-space:nowrap;" title="{{ entry.updated_at|time:'h:i A' }} {{ entry.updated_at|date:'d M Y' }} ({{ entry.updated_at|timesince }} ago)">
+                <span style="font-weight:600;">{{ entry.updated_at|date:"d M" }}</span>, <span style="color:var(--sgi-text-muted);">{{ entry.updated_at|time:"h:i A" }}</span>
+                <div style="font-size:9.5px;color:var(--sgi-text-muted);margin-top:1px;">{{ entry.updated_at|short_timesince }}</div>
+              </div>
               {% else %}
               <span class="text-muted">—</span>
               {% endif %}
