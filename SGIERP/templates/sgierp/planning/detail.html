@@ -46,6 +46,38 @@
   .plan-actions-left { display:flex;gap:6px;align-items:center;flex-wrap:wrap; }
   .plan-actions-right { display:flex;gap:6px;align-items:center; }
 
+  /* Product Tag */
+  .plan-product-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    cursor: pointer;
+    transition: all .15s ease;
+    user-select: none;
+    line-height: 1.3;
+  }
+  .plan-product-tag:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e40af;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .plan-product-tag .tag-edit-icon {
+    font-size: 9px;
+    opacity: 0.55;
+    margin-left: 2px;
+  }
+  .plan-product-tag:hover .tag-edit-icon {
+    opacity: 1;
+  }
+
   /* Top Loading Bar & Badge */
   #planLoadingBar {
     position: fixed;
@@ -179,11 +211,22 @@
     <div class="plan-item-header">
       <i class="bi bi-grip-vertical" style="color:var(--sgi-text-muted);font-size:20px;flex-shrink:0;" title="Drag to reorder priority"></i>
       <div class="plan-item-num {% if entry.is_fully_completed %}done-num{% endif %}">{{ forloop.counter }}</div>
-      <div class="plan-item-title">
+      <div class="plan-item-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <a href="{% url 'sgierp:machine_detail' entry.machine.id %}" class="product-title-link" draggable="false" title="Click to view product details">
           <strong class="product-code-link">{{ entry.machine.code }}</strong>
           <span class="product-name-link"> — {{ entry.machine.name }}</span>
         </a>
+        <!-- Product Tag -->
+        <span class="plan-product-tag"
+              id="tagBadge-{{ entry.id }}"
+              data-item-id="{{ entry.id }}"
+              data-default-tag="Tag #{{ forloop.counter }} ({{ entry.machine.code }})"
+              onclick="editPlanTag('{{ entry.id }}', event)"
+              title="Product Tag — Click to edit or add custom note">
+          <i class="bi bi-tag-fill"></i>
+          <span class="tag-text" id="tagText-{{ entry.id }}">Tag #{{ forloop.counter }} ({{ entry.machine.code }})</span>
+          <i class="bi bi-pencil tag-edit-icon"></i>
+        </span>
       </div>
 
       <!-- Priority Badge -->
@@ -406,6 +449,45 @@ function saveNewOrder() {
   .catch(() => {
     location.reload();
   });
+}
+
+// ---- Product UI Tag (Frontend Helper) ----
+function editPlanTag(itemId, e) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  const textEl = document.getElementById('tagText-' + itemId);
+  const badge = document.getElementById('tagBadge-' + itemId);
+  const defaultTag = badge ? badge.getAttribute('data-default-tag') : '';
+  const current = localStorage.getItem('sgi_plan_tag_' + itemId) || (textEl ? textEl.innerText : defaultTag);
+  const updated = prompt('Enter a custom tag or note for this product (e.g. Order #101, Batch A, Urgent):', current);
+  if (updated !== null) {
+    const trimmed = updated.trim();
+    if (trimmed) {
+      localStorage.setItem('sgi_plan_tag_' + itemId, trimmed);
+      if (textEl) textEl.innerText = trimmed;
+    } else {
+      localStorage.removeItem('sgi_plan_tag_' + itemId);
+      if (textEl) textEl.innerText = defaultTag;
+    }
+  }
+}
+
+function restorePlanTags() {
+  document.querySelectorAll('.plan-product-tag').forEach(function(badge) {
+    const itemId = badge.getAttribute('data-item-id');
+    const saved = localStorage.getItem('sgi_plan_tag_' + itemId);
+    if (saved) {
+      const textEl = document.getElementById('tagText-' + itemId);
+      if (textEl) textEl.innerText = saved;
+    }
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', restorePlanTags);
+} else {
+  restorePlanTags();
 }
 </script>
 {% endblock %}
