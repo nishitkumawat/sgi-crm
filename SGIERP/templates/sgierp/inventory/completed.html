@@ -31,7 +31,8 @@
       </div>
       <div class="sgi-card-actions">
         <div class="sgi-card-actions-row">
-          {% include 'sgierp/components/export_menu.html' with table_id='completedTable' filename='completed_stock' title='Completed Stock' %}
+          {% url 'sgierp:inventory_pdf' as inventory_pdf_base %}
+          {% include 'sgierp/components/export_menu.html' with table_id='completedTable' filename='completed_stock' title='Completed Stock' pdf_href=inventory_pdf_base|add:'?process_status=completed' %}
         </div>
         <div class="sgi-card-actions-primary">
           <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-outline">
@@ -77,6 +78,7 @@
               <th>Process</th>
               <th>Qty Available</th>
               <th>Price</th>
+              <th>Assigned At</th>
               <th></th>
             </tr>
           </thead>
@@ -96,6 +98,16 @@
               <td><strong>{{ entry.total|floatformat:2 }}</strong> <span style="color:var(--sgi-text-muted);">{{ entry.item.unit }}</span></td>
               <td>{{ entry.price|floatformat:2 }}</td>
               <td>
+                {% if entry.assigned_at %}
+                <div style="font-size:11px;line-height:1.2;white-space:nowrap;">
+                  <span style="font-weight:600;">{{ entry.assigned_at|date:"d M Y" }}</span>, <span style="color:var(--sgi-text-muted);">{{ entry.assigned_at|time:"h:i A" }}</span>
+                  <div style="font-size:9.5px;color:var(--sgi-text-muted);margin-top:1px;">{{ entry.assigned_at|timesince }} ago</div>
+                </div>
+                {% else %}
+                <span style="color:var(--sgi-text-muted);">—</span>
+                {% endif %}
+              </td>
+              <td>
                 <a href="{% url 'sgierp:stock_move' %}?item={{ entry.item.id }}&process={{ completed_process.id }}" class="btn-sgi btn-sgi-outline btn-sgi-icon btn-sgi-sm" title="Move back to another process" aria-label="Move {{ entry.item.code }} back to another process">
                   <i class="bi bi-arrow-left-right"></i>
                 </a>
@@ -106,7 +118,7 @@
             </tr>
             {% endfor %}
           </tbody>
-          <tfoot><tr><th colspan="4">Total</th><th>{{ total_qty|floatformat:2 }}</th><th>{{ total_price|floatformat:2 }}</th><th></th></tr></tfoot>
+          <tfoot><tr><th colspan="4">Total</th><th>{{ total_qty|floatformat:2 }}</th><th>{{ total_price|floatformat:2 }}</th><th colspan="2"></th></tr></tfoot>
         </table>
         {% else %}
         <div class="sgi-empty">

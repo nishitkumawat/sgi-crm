@@ -9,7 +9,7 @@
     <button role="menuitem" type="button" class="export-menu-option" onclick="exportTableToExcel('{{ table_id }}', '{{ filename }}')"><i class="bi bi-file-earmark-spreadsheet"></i> Download Excel</button>
     {% endif %}
     {% if pdf_href %}
-    <a role="menuitem" href="{{ pdf_href }}{% if catalog_filters %}?q={{ search|urlencode }}&category={{ category_filter|urlencode }}&status={{ status_filter|urlencode }}{% endif %}" download class="export-menu-option"><i class="bi bi-file-earmark-pdf"></i> Download PDF</a>
+    <a role="menuitem" href="{{ pdf_href }}{% if inventory_filters %}?q={{ search|urlencode }}&process_status={{ process_status|urlencode }}&process={{ process_filter|urlencode }}&status={{ status_filter|urlencode }}{% elif catalog_filters %}?q={{ search|urlencode }}&category={{ category_filter|urlencode }}&status={{ status_filter|urlencode }}{% endif %}" download class="export-menu-option"><i class="bi bi-file-earmark-pdf"></i> Download PDF</a>
     {% else %}
     <button role="menuitem" type="button" class="export-menu-option" data-export-pdf data-table-id="{{ table_id }}" data-filename="{{ filename }}" data-title="{{ title }}" data-pdf-url="{% url 'sgierp:table_pdf_export' %}"><i class="bi bi-file-earmark-pdf"></i> Download PDF</button>
     {% endif %}

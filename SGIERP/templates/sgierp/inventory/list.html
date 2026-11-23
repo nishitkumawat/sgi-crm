@@ -22,7 +22,8 @@
         <!-- <a href="{% url 'sgierp:item_groups' %}" class="btn-sgi btn-sgi-outline">
           <i class="bi bi-collection"></i> Groups
         </a> -->
-        {% include 'sgierp/components/export_menu.html' with table_id='inventoryTable' filename='inventory' title='Inventory' %}
+        {% url 'sgierp:inventory_pdf' as inventory_pdf_base %}
+        {% include 'sgierp/components/export_menu.html' with table_id='inventoryTable' filename='inventory' title='Inventory' pdf_href=inventory_pdf_base inventory_filters=True %}
       </div>
       <div class="sgi-card-actions-primary">
         <a href="{% url 'sgierp:add_stock' %}" class="btn-sgi btn-sgi-primary">
@@ -78,7 +79,7 @@
         <thead>
           <tr>
             <th style="width:36px;"></th>
-            <th style="width:36px;"></th>
+            <!-- <th style="width:36px;"></th> -->
             <th>Item Code</th>
             <th>Item Name</th>
             <th>Process</th>
@@ -86,7 +87,7 @@
             <!-- <th>Price</th> -->
             <th>Assigned To</th>
             <th style="white-space:nowrap;">Updated</th>
-            <!-- <th style="width:140px;"></th> -->
+            <th style="width:140px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -157,7 +158,7 @@
           </tr>
           {% endfor %}
         </tbody>
-        <tfoot><tr><th colspan="5">Total</th><th>{{ inventory_total_qty|floatformat:2 }}</th><th>{{ inventory_total_price|floatformat:2 }}</th><th colspan="3"></th></tr></tfoot>
+        <tfoot><tr><th colspan="4">Total</th><th>{{ inventory_total_qty|floatformat:2 }}</th><th></th><th colspan="3"></th></tr></tfoot>
       </table>
 
       {% else %}

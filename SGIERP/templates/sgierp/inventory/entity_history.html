@@ -11,8 +11,16 @@
 <div class="sgi-card history-page-card">
   <div class="sgi-card-header">
     <div class="sgi-card-title"><div class="card-icon"><i class="bi bi-clock-history"></i></div>{{ entity_type }} History — {{ entity_name }}</div>
+    <div class="sgi-card-actions">
+      <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" id="toggleEntityHistoryFilterBtn" onclick="toggleFilterBar('entityHistoryFiltersBar', this)">
+        <i class="bi bi-funnel"></i> Filters
+        {% if search or history_filters.date_from or history_filters.date_to or history_filters.from_process or history_filters.to_process or history_filters.from_assignee or history_filters.to_assignee %}
+        <span class="sgi-badge sgi-badge-blue" style="font-size:10px;padding:1px 5px;margin-left:4px;">Active</span>
+        {% endif %}
+      </button>
+    </div>
   </div>
-  <div class="filters-bar">
+  <div class="filters-bar" id="entityHistoryFiltersBar" style="{% if not search and not history_filters.date_from and not history_filters.date_to and not history_filters.from_process and not history_filters.to_process and not history_filters.from_assignee and not history_filters.to_assignee %}display:none;{% endif %}">
     <form method="GET" class="filter-form" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
       <div class="sgi-input-group" style="flex:1;min-width:220px;">
         <span class="sgi-input-icon"><i class="bi bi-search"></i></span>
@@ -56,4 +64,13 @@
     {% if total_count %}{% include 'sgierp/components/pagination.html' %}{% endif %}
   </div>
 </div>
+
+<script>
+function toggleFilterBar(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isHidden = el.style.display === 'none' || getComputedStyle(el).display === 'none';
+  el.style.display = isHidden ? 'block' : 'none';
+}
+</script>
 {% endblock %}

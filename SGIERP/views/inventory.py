@@ -146,30 +146,38 @@ def table_pdf_export(request):
                 text_values = [(str(headers[position]), str(value.get('text') or '') if isinstance(value, dict) else str(value or ''))
                                for position, value in enumerate(row)
                                if not isinstance(value, dict) or not value.get('image')]
+                code_index = next((position for position, (header, value) in enumerate(text_values)
+                                   if header.strip().lower() in {'code', 'item code', 'product code'} and value.strip()), None)
                 title_index = next((position for position, (header, value) in enumerate(text_values)
-                                    if header.strip().lower() in {'item', 'product', 'name', 'item name'} and value.strip()), None)
-                if title_index is None:
-                    title_index = next((position for position, (header, value) in enumerate(text_values)
-                                        if header.strip().lower() in {'code', 'item code', 'product code'} and value.strip()), None)
-                title_text = text_values[title_index][1] if title_index is not None else ''
-                title_lines = _pdf_wrap(title_text.replace('\n', ' ').encode('latin-1', 'replace').decode('latin-1'), 'Helvetica-Bold', 8.7, cell_width - 14, 3)
-                pdf.setFillColorRGB(.09, .16, .28)
-                pdf.setFont('Helvetica-Bold', 8.7)
-                for line_number, line in enumerate(title_lines):
-                    pdf.drawCentredString(x + cell_width / 2, y + cell_height - 90 - line_number * 9, line)
+                                    if header.strip().lower() in {'item', 'product', 'name', 'item name'} and position != code_index and value.strip()), None)
+                if title_index is None and code_index is not None:
+                    title_index = code_index
+                    code_index = None
 
-                detail_y = y + cell_height - 90 - len(title_lines) * 9 - 8
+                code_text = text_values[code_index][1] if code_index is not None else ''
+                code_lines = _pdf_wrap(code_text.replace('\n', ' ').encode('latin-1', 'replace').decode('latin-1'), 'Helvetica-Bold', 9.5, cell_width - 14, 2) if code_text else []
+                pdf.setFillColorRGB(.09, .16, .28)
+                pdf.setFont('Helvetica-Bold', 9.5)
+                for line_number, line in enumerate(code_lines):
+                    pdf.drawCentredString(x + cell_width / 2, y + cell_height - 89 - line_number * 10, line)
+
+                title_text = text_values[title_index][1] if title_index is not None else ''
+                name_y_start = y + cell_height - 89 - len(code_lines) * 10 - 2
+                title_lines = _pdf_wrap(title_text.replace('\n', ' ').encode('latin-1', 'replace').decode('latin-1'), 'Helvetica', 7.5, cell_width - 14, 2)
+                pdf.setFont('Helvetica', 7.5)
+                for line_number, line in enumerate(title_lines):
+                    pdf.drawCentredString(x + cell_width / 2, name_y_start - line_number * 8.5, line)
+
+                detail_y = name_y_start - len(title_lines) * 8.5 - 4
                 pdf.setFillColorRGB(.30, .35, .42)
                 pdf.setFont('Helvetica', 6.2)
                 visible_details = [(header, value) for position, (header, value) in enumerate(text_values)
-                                   if position != title_index and header.strip() and header.strip().lower() not in skip_headers and value.strip()]
-                for detail_index, (header, value) in enumerate(visible_details[:5]):
+                                   if position != title_index and position != code_index and header.strip() and header.strip().lower() not in skip_headers and value.strip()]
+                for detail_index, (header, value) in enumerate(visible_details[:4]):
                     detail = f'{header[:13]}: {value.replace(chr(10), " ")}'.encode('latin-1', 'replace').decode('latin-1')
                     lines = simpleSplit(detail, 'Helvetica', 6.2, cell_width - 14)
                     pdf.drawCentredString(x + cell_width / 2, detail_y - detail_index * 7.2,
                                           lines[0][:54] if lines else '')
-                if len(visible_details) > 5:
-                    pdf.drawCentredString(x + cell_width / 2, y + 6, f'+{len(visible_details) - 5} more fields')
 
             pdf.setFillColorRGB(.40, .44, .50)
             pdf.setFont('Helvetica', 8)
@@ -427,6 +435,167 @@ def item_catalog_pdf(request):
         pdf.setFillColorRGB(.40, .44, .50)
         pdf.setFont('Helvetica', 8)
         pdf.drawCentredString(page_width / 2, 10, f'Page {page_index + 1} of {page_count}  |  {len(items)} items')
+        pdf.showPage()
+    pdf.save()
+    return response
+
+
+@sgi_login_required
+def inventory_pdf(request):
+    """Download the filtered inventory stock entries as an A4 PDF (20 cards per page, layout same as item catalog)."""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    search = request.GET.get('q', '').strip()
+    process_filter = request.GET.get('process', '').strip()
+    status_filter = request.GET.get('status', 'active')
+    process_status = request.GET.get('process_status', 'non_completed')
+
+    entries_qs = ItemProcess.objects.filter(quantity__gt=0).exclude(
+        process__is_rejected_process=True
+    ).select_related(
+        'item', 'process', 'assigned_to'
+    )
+
+    if search:
+        entries_qs = entries_qs.filter(
+            Q(item__code__icontains=search) | Q(item__name__icontains=search)
+        )
+    if process_filter:
+        try:
+            entries_qs = entries_qs.filter(process_id=int(process_filter))
+        except (ValueError, TypeError):
+            pass
+    if status_filter == 'inactive':
+        entries_qs = entries_qs.filter(item__is_active=False)
+    elif status_filter:
+        entries_qs = entries_qs.filter(item__is_active=True)
+
+    completed = get_completed_process()
+    if process_status == 'completed':
+        entries_qs = entries_qs.filter(process=completed) if completed else entries_qs.none()
+    elif process_status == 'rejected':
+        entries_qs = entries_qs.none()
+    elif process_status == 'non_completed':
+        entries_qs = entries_qs.exclude(
+            Q(process__is_completed_process=True) | Q(process__is_rejected_process=True)
+        )
+
+    entries = list(entries_qs.order_by('item__code', 'process__order', 'process__name'))
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="sgi_inventory.pdf"'
+    pdf = canvas.Canvas(response, pagesize=A4, pageCompression=1)
+    page_width, page_height = A4
+    margin = 24
+    header_bottom = page_height - 55
+    grid_width = page_width - 2 * margin
+    grid_height = header_bottom - 22
+    cell_width = grid_width / 4
+    cell_height = grid_height / 5
+
+    def printable(value, limit=None):
+        text = str(value or '').encode('latin-1', 'replace').decode('latin-1')
+        if limit and len(text) > limit:
+            text = text[:max(0, limit - 3)].rstrip() + '...'
+        return text
+
+    page_count = max(1, (len(entries) + 19) // 20)
+    for page_index in range(page_count):
+        page_entries = entries[page_index * 20:(page_index + 1) * 20]
+        pdf.setFillColorRGB(.09, .16, .28)
+        pdf.setFont('Helvetica-Bold', 15)
+        pdf.drawString(margin, page_height - 29, 'SGI Inventory')
+        pdf.setFillColorRGB(.36, .41, .48)
+        pdf.setFont('Helvetica', 8.5)
+        pdf.drawRightString(page_width - margin, page_height - 28, 'A4 | 20 items per page')
+
+        subtitle_parts = []
+        if search:
+            subtitle_parts.append(f'Search: {printable(search, 30)}')
+        if process_status and process_status != 'all':
+            subtitle_parts.append(f'Status: {"Completed" if process_status == "completed" else "Non-Completed"}')
+        if process_filter:
+            try:
+                proc_obj = Process.objects.filter(id=int(process_filter)).first()
+                if proc_obj:
+                    subtitle_parts.append(f'Process: {printable(proc_obj.name, 20)}')
+            except (ValueError, TypeError):
+                pass
+        if status_filter:
+            subtitle_parts.append(f'Item: {"Inactive" if status_filter == "inactive" else "Active"}')
+
+        pdf.drawString(margin, page_height - 43, '  |  '.join(subtitle_parts) or 'Complete inventory stock')
+
+        for index, entry in enumerate(page_entries):
+            row, column = divmod(index, 4)
+            x = margin + column * cell_width
+            y = header_bottom - (row + 1) * cell_height
+            pdf.setStrokeColorRGB(.82, .85, .88)
+            pdf.setLineWidth(.55)
+            pdf.roundRect(x + 2, y + 2, cell_width - 4, cell_height - 4, 3, stroke=1, fill=0)
+
+            image_box_w = cell_width - 14
+            image_box_h = 72
+            image_y = y + cell_height - 80
+            image_drawn = False
+            item = entry.item
+            if item.image:
+                try:
+                    with item.image.open('rb') as image_file:
+                        image_data = BytesIO(image_file.read())
+                    image = ImageReader(image_data)
+                    image_w, image_h = image.getSize()
+                    scale = min(image_box_w / image_w, image_box_h / image_h)
+                    draw_w, draw_h = image_w * scale, image_h * scale
+                    pdf.drawImage(image, x + (cell_width - draw_w) / 2, image_y + (image_box_h - draw_h) / 2,
+                                  width=draw_w, height=draw_h, preserveAspectRatio=True, mask='auto')
+                    image_drawn = True
+                except Exception:
+                    image_drawn = False
+            if not image_drawn:
+                pdf.setFillColorRGB(.94, .96, .98)
+                pdf.roundRect(x + 10, image_y, image_box_w, image_box_h, 3, stroke=0, fill=1)
+                pdf.setFillColorRGB(.48, .53, .60)
+                pdf.setFont('Helvetica', 8)
+                pdf.drawCentredString(x + cell_width / 2, image_y + image_box_h / 2 - 3, 'No image')
+
+            # Item Code
+            pdf.setFillColorRGB(.09, .16, .28)
+            pdf.setFont('Helvetica-Bold', 9.5)
+            code_lines = _pdf_wrap(printable(item.code), 'Helvetica-Bold', 9.5, cell_width - 14, 2)
+            for line_number, line in enumerate(code_lines):
+                pdf.drawCentredString(x + cell_width / 2, y + cell_height - 89 - line_number * 10, line)
+
+            # Item Name
+            name_y_start = y + cell_height - 89 - len(code_lines) * 10 - 2
+            name_lines = _pdf_wrap(printable(item.name), 'Helvetica', 7.5, cell_width - 14, 2)
+            pdf.setFont('Helvetica', 7.5)
+            for line_number, line in enumerate(name_lines):
+                pdf.drawCentredString(x + cell_width / 2, name_y_start - line_number * 8.5, line)
+
+            # Details: Stage, Quantity, Assigned To
+            pdf.setFillColorRGB(.30, .35, .42)
+            pdf.setFont('Helvetica', 6.2)
+            qty_str = f"{entry.quantity:.2f}".rstrip('0').rstrip('.') if entry.quantity is not None else "0"
+            stage_name = entry.process.name if entry.process else '-'
+            unit_name = item.get_unit_display() if hasattr(item, 'get_unit_display') else (item.unit or '')
+
+            details = [
+                f'{printable(stage_name, 16)}  |  Qty: {qty_str} {printable(unit_name, 8)}',
+            ]
+            if entry.assigned_to:
+                details.append(f'Assigned: {printable(entry.assigned_to.name, 22)}')
+
+            detail_y_start = name_y_start - len(name_lines) * 8.5 - 4
+            for line_number, detail in enumerate(details):
+                pdf.drawCentredString(x + cell_width / 2, detail_y_start - line_number * 7.2, detail)
+
+        pdf.setFillColorRGB(.40, .44, .50)
+        pdf.setFont('Helvetica', 8)
+        pdf.drawCentredString(page_width / 2, 10, f'Page {page_index + 1} of {page_count}  |  {len(entries)} items')
         pdf.showPage()
     pdf.save()
     return response
@@ -1265,13 +1434,17 @@ def completed_stock(request):
 
     # Aggregate by item
     from collections import defaultdict
-    items_map = defaultdict(lambda: {'item': None, 'entries': [], 'total': 0})
+    items_map = defaultdict(lambda: {'item': None, 'entries': [], 'total': 0, 'assigned_at': None})
     for entry in entries_qs:
         key = entry.item_id
         items_map[key]['item'] = entry.item
         items_map[key]['entries'].append(entry)
         items_map[key]['total'] += entry.quantity
         items_map[key]['price'] = entry.price
+        entry_assigned_time = entry.assigned_at or entry.updated_at
+        current_assigned = items_map[key].get('assigned_at')
+        if not current_assigned or (entry_assigned_time and entry_assigned_time > current_assigned):
+            items_map[key]['assigned_at'] = entry_assigned_time
 
     all_completed_items = sorted(items_map.values(), key=lambda x: x['item'].code)
     total_items = len(all_completed_items)

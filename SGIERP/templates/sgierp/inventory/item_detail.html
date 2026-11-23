@@ -125,8 +125,16 @@
       <div class="card-icon"><i class="bi bi-clock-history"></i></div>
       Stock History
     </div>
+    <div class="sgi-card-actions">
+      <button type="button" class="btn-sgi btn-sgi-outline btn-sgi-sm" id="toggleItemHistoryFilterBtn" onclick="toggleFilterBar('itemHistoryFiltersBar', this)">
+        <i class="bi bi-funnel"></i> Filters
+        {% if history_filters.date_from or history_filters.date_to or history_filters.from_process or history_filters.to_process or history_filters.from_assignee or history_filters.to_assignee %}
+        <span class="sgi-badge sgi-badge-blue" style="font-size:10px;padding:1px 5px;margin-left:4px;">Active</span>
+        {% endif %}
+      </button>
+    </div>
   </div>
-  <div class="filters-bar"><form method="GET" class="filter-form" style="display:flex;gap:8px;flex-wrap:wrap;">
+  <div class="filters-bar" id="itemHistoryFiltersBar" style="{% if not history_filters.date_from and not history_filters.date_to and not history_filters.from_process and not history_filters.to_process and not history_filters.from_assignee and not history_filters.to_assignee %}display:none;{% endif %}"><form method="GET" class="filter-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <input type="hidden" name="per_page" value="{{ per_page }}">
     <input class="sgi-input" type="date" name="date_from" value="{{ history_filters.date_from }}" aria-label="From date"><input class="sgi-input" type="date" name="date_to" value="{{ history_filters.date_to }}" aria-label="To date">
     <select class="sgi-select" name="from_process"><option value="">Any source process</option>{% for p in processes %}<option value="{{ p.id }}" {% if history_filters.from_process == p.id|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
@@ -134,6 +142,9 @@
     <select class="sgi-select" name="from_assignee"><option value="">Any source assignee</option>{% for a in assignees %}<option value="{{ a.id }}" {% if history_filters.from_assignee == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
     <select class="sgi-select" name="to_assignee"><option value="">Any destination assignee</option>{% for a in assignees %}<option value="{{ a.id }}" {% if history_filters.to_assignee == a.id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select>
     <button class="btn-sgi btn-sgi-primary" type="submit">Filter</button>
+    {% if history_filters.date_from or history_filters.date_to or history_filters.from_process or history_filters.to_process or history_filters.from_assignee or history_filters.to_assignee %}
+    <a href="?" class="btn-sgi btn-sgi-outline" style="font-size:12px;">Clear</a>
+    {% endif %}
   </form></div>
   <div class="sgi-table-wrap history-responsive-wrap">
     {% if item_history %}
@@ -223,4 +234,13 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+function toggleFilterBar(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isHidden = el.style.display === 'none' || getComputedStyle(el).display === 'none';
+  el.style.display = isHidden ? 'block' : 'none';
+}
+</script>
 {% endblock %}

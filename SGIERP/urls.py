@@ -3,7 +3,7 @@ from django.urls import path
 from SGIERP.views import (
     login_view, logout_view, forgot_password_view, verify_otp_view, reset_password_view, signup_view,
     dashboard,
-    table_pdf_export, item_catalog, item_catalog_pdf, inventory_list, item_create, item_edit, item_detail, item_delete, add_stock, inventory_entry_delete, stock_move_view, completed_stock, rejected_stock, stock_history, item_groups, process_wise_stock, assignee_wise_stock, process_history, assignee_history,
+    table_pdf_export, item_catalog, item_catalog_pdf, inventory_list, inventory_pdf, item_create, item_edit, item_detail, item_delete, add_stock, inventory_entry_delete, stock_move_view, completed_stock, rejected_stock, stock_history, item_groups, process_wise_stock, assignee_wise_stock, process_history, assignee_history,
     machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete,
     planning_view, planning_list, planning_create, planning_detail, planning_edit, planning_delete, planning_reorder, planning_mark_done, planning_add_item, planning_delete_item, planning_update_qty, planning_update_tag, planning_sync_tags,
     dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete, dispatch_bom_preview,
@@ -32,6 +32,7 @@ urlpatterns = [
     path('catalog/', item_catalog, name='item_catalog'),
     path('catalog/export/pdf/', item_catalog_pdf, name='item_catalog_pdf'),
     path('inventory/', inventory_list, name='inventory'),
+    path('inventory/export/pdf/', inventory_pdf, name='inventory_pdf'),
     path('inventory/add/', add_stock, name='add_stock'),
     path('inventory/entry/<int:entry_id>/delete/', inventory_entry_delete, name='inventory_entry_delete'),
     path('catalog/add/', item_create, name='item_create'),
