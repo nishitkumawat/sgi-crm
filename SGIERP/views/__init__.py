@@ -7,7 +7,8 @@ from .inventory import (
 from .machines import machine_list, machine_create, machine_edit, machine_detail, machine_bom_export, machine_delete
 from .planning import (
     planning_view, planning_list, planning_create, planning_detail, planning_edit, planning_delete,
-    planning_reorder, planning_mark_done, planning_add_item, planning_delete_item, planning_update_qty
+    planning_reorder, planning_mark_done, planning_add_item, planning_delete_item, planning_update_qty,
+    planning_update_tag, planning_sync_tags
 )
 from .dispatch import dispatch_list, dispatch_create, dispatch_detail, dispatch_challan, dispatch_delete, dispatch_bom_preview
 from .challan import challan_list, challan_create, challan_detail, challan_print
@@ -21,6 +22,7 @@ __all__ = [
     'machine_list', 'machine_create', 'machine_edit', 'machine_detail', 'machine_bom_export', 'machine_delete',
     'planning_view', 'planning_list', 'planning_create', 'planning_detail', 'planning_edit', 'planning_delete',
     'planning_reorder', 'planning_mark_done', 'planning_add_item', 'planning_delete_item', 'planning_update_qty',
+    'planning_update_tag', 'planning_sync_tags',
     'dispatch_list', 'dispatch_create', 'dispatch_detail', 'dispatch_challan', 'dispatch_delete', 'dispatch_bom_preview',
     'challan_list', 'challan_create', 'challan_detail', 'challan_print',
     'settings_view', 'process_create_edit', 'process_delete', 'user_list', 'user_create_edit', 'assignee_create_edit', 'assignee_delete', 'save_erp_config', 'change_delete_passcode',

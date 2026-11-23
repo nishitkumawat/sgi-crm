@@ -15,7 +15,14 @@ def sgi_login_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.session.get('sgi_user_id'):
-            return redirect('sgierp:login')
+            # If user is authenticated via Django auth, populate SGIERP session automatically
+            if getattr(request, 'user', None) and request.user.is_authenticated:
+                request.session['sgi_user_id'] = request.user.id
+            else:
+                from django.http import JsonResponse
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                    return JsonResponse({'error': 'Login required', 'login_required': True}, status=401)
+                return redirect('sgierp:login')
         return view_func(request, *args, **kwargs)
     return wrapper
 

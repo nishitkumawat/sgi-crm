@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.db import transaction, models
 from django.db.models import Sum, Q, Max
 from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.csrf import csrf_exempt
 
 from SGIERP.decorators import sgi_login_required, get_sgi_user
 from SGIERP.models import ProductionPlan, ProductionPlanItem, Machine, MachineBOM, ItemProcess, Process
@@ -163,6 +164,7 @@ def planning_view(request):
             'quantity': item.quantity,
             'completed_quantity': item.completed_quantity,
             'order': item.order,
+            'tag': item.tag,
         }
         for item in plan_items_qs
     ]
@@ -199,6 +201,7 @@ def planning_add_item(request):
     plan = _get_single_plan()
     machine_id = request.POST.get('machine_id')
     qty_raw = request.POST.get('quantity', '1')
+    tag_val = request.POST.get('tag', '').strip()
 
     try:
         qty = max(1, int(qty_raw))
@@ -219,6 +222,7 @@ def planning_add_item(request):
         quantity=qty,
         order=next_order,
         completed_quantity=0,
+        tag=tag_val,
     )
     messages.success(request, f'Added {machine.code} ({qty} unit{"s" if qty > 1 else ""}) to planning queue.')
     return redirect('sgierp:planning_list')
@@ -272,6 +276,7 @@ def planning_update_qty(request, item_id):
     return redirect('sgierp:planning_list')
 
 
+@csrf_exempt
 @sgi_login_required
 @require_POST
 def planning_reorder(request):
@@ -291,6 +296,55 @@ def planning_reorder(request):
                 items[item_id].save(update_fields=['order'])
 
     return JsonResponse({'ok': True})
+
+
+@csrf_exempt
+@sgi_login_required
+@require_POST
+def planning_update_tag(request, item_id):
+    """AJAX: update custom tag/label for a single plan item (shared across all accounts)."""
+    plan = _get_single_plan()
+    item = get_object_or_404(ProductionPlanItem, id=item_id, plan=plan)
+    try:
+        data = json.loads(request.body)
+        tag = str(data.get('tag', '')).strip()
+    except Exception:
+        tag = request.POST.get('tag', '').strip()
+
+    item.tag = tag[:100]
+    item.save(update_fields=['tag'])
+    return JsonResponse({'ok': True, 'item_id': item.id, 'tag': item.tag})
+
+
+@csrf_exempt
+@sgi_login_required
+@require_POST
+def planning_sync_tags(request):
+    """
+    AJAX: bulk sync tags from client localStorage into the database
+    so any tags set previously by 'pravin' or any other user are persisted
+    and shared across all accounts.
+    """
+    plan = _get_single_plan()
+    try:
+        data = json.loads(request.body)
+        tags_map = data.get('tags', {})
+    except Exception:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    updated_count = 0
+    items = {str(item.id): item for item in plan.items.all()}
+    with transaction.atomic():
+        for item_id_str, tag_val in tags_map.items():
+            if item_id_str in items and tag_val:
+                clean_tag = str(tag_val).strip()[:100]
+                item = items[item_id_str]
+                if item.tag != clean_tag:
+                    item.tag = clean_tag
+                    item.save(update_fields=['tag'])
+                    updated_count += 1
+
+    return JsonResponse({'ok': True, 'updated_count': updated_count})
 
 
 # Aliases & redirects for backward compatibility

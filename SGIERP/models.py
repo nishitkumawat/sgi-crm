@@ -503,6 +503,7 @@ class ProductionPlanItem(models.Model):
     quantity = models.PositiveIntegerField(default=1, help_text='Number of units to produce')
     order = models.PositiveIntegerField(default=0, help_text='Display/priority order (0 = highest)')
     completed_quantity = models.PositiveIntegerField(default=0, help_text='Units already dispatched/produced')
+    tag = models.CharField(max_length=100, blank=True, default='', help_text='Custom display tag / label for this product')
 
     class Meta:
         db_table = 'sgi_production_plan_item'

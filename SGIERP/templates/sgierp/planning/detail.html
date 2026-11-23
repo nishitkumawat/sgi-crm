@@ -50,28 +50,41 @@
   .plan-product-tag {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
-    border-radius: 4px;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 6px;
     font-size: 11px;
     font-weight: 600;
-    background: #eff6ff;
-    color: #1d4ed8;
-    border: 1px solid #bfdbfe;
     cursor: pointer;
     transition: all .15s ease;
     user-select: none;
     line-height: 1.3;
   }
-  .plan-product-tag:hover {
+  .plan-product-tag.has-tag {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+  .plan-product-tag.has-tag:hover {
     background: #dbeafe;
     border-color: #93c5fd;
     color: #1e40af;
     box-shadow: 0 1px 3px rgba(0,0,0,.08);
   }
+  .plan-product-tag.no-tag {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px dashed #cbd5e1;
+    font-weight: 500;
+  }
+  .plan-product-tag.no-tag:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+  }
   .plan-product-tag .tag-edit-icon {
-    font-size: 9px;
-    opacity: 0.55;
+    font-size: 10px;
+    opacity: 0.6;
     margin-left: 2px;
   }
   .plan-product-tag:hover .tag-edit-icon {
@@ -173,7 +186,7 @@
 
   <form method="POST" action="{% url 'sgierp:planning_add_item' %}" class="plan-add-form">
     {% csrf_token %}
-    <div style="flex:2;min-width:240px;">
+    <div style="flex:2;min-width:220px;">
       <label class="sgi-label" style="font-size:12px;">Select Product</label>
       <select class="sgi-input" name="machine_id" required>
         <option value="">— Select Product —</option>
@@ -182,7 +195,11 @@
         {% endfor %}
       </select>
     </div>
-    <div style="flex:0 0 100px;">
+    <div style="flex:1;min-width:130px;">
+      <label class="sgi-label" style="font-size:12px;">Tag / Note (Optional)</label>
+      <input type="text" class="sgi-input" name="tag" placeholder="e.g. Order #1, Batch A" style="height:38px;">
+    </div>
+    <div style="flex:0 0 90px;">
       <label class="sgi-label" style="font-size:12px;">Quantity</label>
       <input type="number" class="sgi-input" name="quantity" value="1" min="1" max="9999" required>
     </div>
@@ -216,16 +233,21 @@
           <strong class="product-code-link">{{ entry.machine.code }}</strong>
           <span class="product-name-link"> — {{ entry.machine.name }}</span>
         </a>
-        <!-- Product Tag -->
-        <span class="plan-product-tag"
+        <!-- Product Tag (Database-backed & shared across all accounts) -->
+        <span class="plan-product-tag {% if entry.tag %}has-tag{% else %}no-tag{% endif %}"
               id="tagBadge-{{ entry.id }}"
               data-item-id="{{ entry.id }}"
-              data-default-tag="Tag #{{ forloop.counter }} ({{ entry.machine.code }})"
+              data-current-tag="{{ entry.tag|default:'' }}"
               onclick="editPlanTag('{{ entry.id }}', event)"
-              title="Product Tag — Click to edit or add custom note">
-          <i class="bi bi-tag-fill"></i>
-          <span class="tag-text" id="tagText-{{ entry.id }}">Tag #{{ forloop.counter }} ({{ entry.machine.code }})</span>
-          <i class="bi bi-pencil tag-edit-icon"></i>
+              title="{% if entry.tag %}Custom Tag: {{ entry.tag }} (Click to edit){% else %}Click to add tag (shared across all accounts){% endif %}">
+          {% if entry.tag %}
+            <i class="bi bi-tag-fill" style="color:var(--sgi-primary);"></i>
+            <span class="tag-text" id="tagText-{{ entry.id }}">{{ entry.tag }}</span>
+            <i class="bi bi-pencil tag-edit-icon"></i>
+          {% else %}
+            <i class="bi bi-plus-circle"></i>
+            <span class="tag-text" id="tagText-{{ entry.id }}">+ Add Tag</span>
+          {% endif %}
         </span>
       </div>
 
@@ -422,6 +444,20 @@ if (container) {
   });
 }
 
+function getCsrfToken() {
+  const input = document.querySelector('[name=csrfmiddlewaretoken]');
+  if (input && input.value) return input.value;
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  return "{{ csrf_token }}";
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function saveNewOrder() {
   if (!container) return;
   const order = [...container.querySelectorAll('.plan-item-card')].map(c => parseInt(c.dataset.itemId));
@@ -434,7 +470,11 @@ function saveNewOrder() {
 
   fetch(REORDER_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+      'X-Requested-With': 'XMLHttpRequest'
+    },
     body: JSON.stringify({ order }),
   })
   .then(r => r.json())
@@ -451,43 +491,115 @@ function saveNewOrder() {
   });
 }
 
-// ---- Product UI Tag (Frontend Helper) ----
+// ---- Product UI Tag (Database-Backed & Common For All Accounts) ----
+const SYNC_TAGS_URL = "{% url 'sgierp:planning_sync_tags' %}";
+const UPDATE_TAG_BASE_URL = "{% url 'sgierp:planning_update_tag' 0 %}";
+
 function editPlanTag(itemId, e) {
   if (e) {
     e.stopPropagation();
     e.preventDefault();
   }
-  const textEl = document.getElementById('tagText-' + itemId);
   const badge = document.getElementById('tagBadge-' + itemId);
-  const defaultTag = badge ? badge.getAttribute('data-default-tag') : '';
-  const current = localStorage.getItem('sgi_plan_tag_' + itemId) || (textEl ? textEl.innerText : defaultTag);
-  const updated = prompt('Enter a custom tag or note for this product (e.g. Order #101, Batch A, Urgent):', current);
-  if (updated !== null) {
-    const trimmed = updated.trim();
-    if (trimmed) {
-      localStorage.setItem('sgi_plan_tag_' + itemId, trimmed);
-      if (textEl) textEl.innerText = trimmed;
-    } else {
-      localStorage.removeItem('sgi_plan_tag_' + itemId);
-      if (textEl) textEl.innerText = defaultTag;
+  const current = badge ? (badge.getAttribute('data-current-tag') || '') : '';
+  const updated = prompt('Enter tag for this product (stored in database for ALL accounts):', current);
+  if (updated === null) return; // Cancelled
+
+  const trimmed = updated.trim();
+  if (trimmed === current) return; // No change
+
+  const originalHtml = badge.innerHTML;
+  const originalClass = badge.className;
+  badge.innerHTML = '<i class="bi bi-arrow-repeat spin-icon"></i> Saving...';
+
+  const url = UPDATE_TAG_BASE_URL.replace('/0/', '/' + itemId + '/');
+
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({ tag: trimmed })
+  })
+  .then(r => {
+    if (!r.ok) {
+      throw new Error('Server returned HTTP ' + r.status);
     }
+    return r.json();
+  })
+  .then(data => {
+    if (data.ok) {
+      const newTag = data.tag || '';
+      badge.setAttribute('data-current-tag', newTag);
+      if (newTag) {
+        badge.className = 'plan-product-tag has-tag';
+        badge.innerHTML = '<i class="bi bi-tag-fill" style="color:var(--sgi-primary);"></i> <span class="tag-text" id="tagText-' + itemId + '">' + escapeHtml(newTag) + '</span> <i class="bi bi-pencil tag-edit-icon"></i>';
+        badge.title = 'Custom Tag: ' + newTag + ' (Click to edit)';
+      } else {
+        badge.className = 'plan-product-tag no-tag';
+        badge.innerHTML = '<i class="bi bi-plus-circle"></i> <span class="tag-text" id="tagText-' + itemId + '">+ Add Tag</span>';
+        badge.title = 'Click to add tag (shared across all accounts)';
+      }
+      try { localStorage.removeItem('sgi_plan_tag_' + itemId); } catch (_) {}
+    } else {
+      badge.className = originalClass;
+      badge.innerHTML = originalHtml;
+      alert('Could not save tag: ' + (data.error || 'Server error'));
+    }
+  })
+  .catch(err => {
+    badge.className = originalClass;
+    badge.innerHTML = originalHtml;
+    console.error('Tag save error:', err);
+    alert('Error saving tag to database: ' + err.message);
+  });
+}
+
+// Auto-sync any tags previously saved in browser localStorage to the database:
+// This ensures any tags set on this browser are uploaded to the server
+// and made common for ALL accounts!
+function syncLocalTagsToServer() {
+  const localTags = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('sgi_plan_tag_')) {
+      const itemId = k.replace('sgi_plan_tag_', '');
+      const val = localStorage.getItem(k);
+      if (val && val.trim()) {
+        localTags[itemId] = val.trim();
+      }
+    }
+  }
+
+  if (Object.keys(localTags).length > 0) {
+    fetch(SYNC_TAGS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({ tags: localTags })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok && data.updated_count > 0) {
+        for (const k in localTags) {
+          localStorage.removeItem('sgi_plan_tag_' + k);
+        }
+        location.reload();
+      }
+    })
+    .catch(console.error);
   }
 }
 
-function restorePlanTags() {
-  document.querySelectorAll('.plan-product-tag').forEach(function(badge) {
-    const itemId = badge.getAttribute('data-item-id');
-    const saved = localStorage.getItem('sgi_plan_tag_' + itemId);
-    if (saved) {
-      const textEl = document.getElementById('tagText-' + itemId);
-      if (textEl) textEl.innerText = saved;
-    }
-  });
-}
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', restorePlanTags);
+  document.addEventListener('DOMContentLoaded', syncLocalTagsToServer);
 } else {
-  restorePlanTags();
+  syncLocalTagsToServer();
 }
 </script>
 {% endblock %}
