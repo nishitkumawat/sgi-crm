@@ -6,28 +6,52 @@
     <div class="sgi-auth-header">
       <img src="{% static 'sgierp/images/logo.png' %}" alt="Shree Gayatri Industries" class="sgi-auth-logo-img">
       <h1>Enter OTP</h1>
-      <p>Check your registered email for the 6-digit code</p>
+      <p style="margin-top:4px;">
+        {% if masked_email %}
+        Sent to <strong style="color:var(--sgi-primary);">{{ masked_email }}</strong>
+        {% else %}
+        Check your registered email for the 6-digit code
+        {% endif %}
+      </p>
     </div>
     <div class="sgi-auth-body-inner">
       {% if messages %}{% for message in messages %}
-      <div class="sgi-alert {% if message.tags == 'error' %}sgi-alert-error{% else %}sgi-alert-info{% endif %}" style="margin-bottom:16px;">
-        <i class="bi bi-info-circle-fill"></i> {{ message }}
+      <div class="sgi-alert {% if message.tags == 'error' %}sgi-alert-error{% elif message.tags == 'success' %}sgi-alert-success{% else %}sgi-alert-info{% endif %}" style="margin-bottom:16px;">
+        <i class="bi {% if message.tags == 'error' %}bi-exclamation-triangle-fill{% elif message.tags == 'success' %}bi-check-circle-fill{% else %}bi-info-circle-fill{% endif %}"></i> {{ message }}
       </div>
       {% endfor %}{% endif %}
+
       <form method="POST">
         {% csrf_token %}
         <div class="sgi-form-group">
           <label class="sgi-label">6-Digit OTP <span class="required">*</span></label>
-          <input type="text" class="sgi-input" name="otp" placeholder="Enter OTP"
-            maxlength="6" pattern="\d{6}" inputmode="numeric" required autofocus
-            style="font-size:20px;letter-spacing:8px;text-align:center;">
-          <div class="sgi-input-hint">OTP expires in 5 minutes. Max 5 attempts.</div>
+          <input type="text" class="sgi-input" name="otp" placeholder="••••••"
+            maxlength="6" pattern="\d{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus
+            style="font-size:24px;letter-spacing:10px;text-align:center;font-weight:700;font-family:monospace;">
+          <div class="sgi-input-hint" style="font-size:12px;color:var(--sgi-text-muted);margin-top:6px;display:flex;justify-content:space-between;align-items:center;">
+            <span>Expires in 5 minutes</span>
+            <span>Max 5 attempts</span>
+          </div>
         </div>
         <button type="submit" class="btn-sgi btn-sgi-primary" style="width:100%;justify-content:center;padding:11px;">
           <i class="bi bi-check2-circle"></i> Verify OTP
         </button>
-        <div class="sgi-auth-links"><a href="{% url 'sgierp:forgot_password' %}">← Request new OTP</a></div>
       </form>
+
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--sgi-border);display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <form method="POST" style="margin:0;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="resend">
+          <button type="submit" class="btn-sgi btn-sgi-outline btn-sgi-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+            <i class="bi bi-arrow-clockwise"></i> Resend OTP
+          </button>
+        </form>
+        <a href="{% url 'sgierp:forgot_password' %}" style="color:var(--sgi-text-muted);text-decoration:none;">Change Account</a>
+      </div>
+
+      <div class="sgi-auth-links" style="margin-top:14px;">
+        <a href="{% url 'sgierp:login' %}">← Back to Login</a>
+      </div>
     </div>
   </div>
 </div>

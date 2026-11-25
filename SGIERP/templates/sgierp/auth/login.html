@@ -21,11 +21,11 @@
         {% endif %}
 
         <div class="sgi-form-group">
-          <label class="sgi-label" for="username">Username <span class="required">*</span></label>
+          <label class="sgi-label" for="username">Username or Email <span class="required">*</span></label>
           <div class="sgi-input-group">
             <span class="sgi-input-icon"><i class="bi bi-person"></i></span>
             <input type="text" class="sgi-input" id="username" name="username"
-              placeholder="Enter your username"
+              placeholder="Enter your username or email"
               value="{{ request.POST.username|default:'' }}" required autofocus>
           </div>
         </div>
