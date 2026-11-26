@@ -47,6 +47,10 @@
         <i class="bi bi-boxes sgi-icon"></i>
         <span>Inventory</span>
       </a>
+      <a href="{% url 'sgierp:add_stock' %}" class="sidebar-link {% if request.resolver_match.url_name == 'add_stock' %}active{% endif %}">
+        <i class="bi bi-plus-lg sgi-icon"></i>
+        <span>Add Stock</span>
+      </a>
       <a href="{% url 'sgierp:stock_move' %}" class="sidebar-link {% if request.resolver_match.url_name == 'stock_move' %}active{% endif %}">
         <i class="bi bi-arrow-left-right sgi-icon"></i>
         <span>Move Stock</span>
@@ -136,6 +140,9 @@
         <div class="topbar-actions">
           <a href="{% url 'sgierp:inventory' %}?status=active" class="topbar-btn" title="Inventory">
             <i class="bi bi-boxes"></i>
+          </a>
+          <a href="{% url 'sgierp:add_stock' %}" class="topbar-btn" title="Add Stock">
+            <i class="bi bi-plus-lg"></i>
           </a>
           <a href="{% url 'sgierp:stock_move' %}" class="topbar-btn" title="Move Stock">
             <i class="bi bi-arrow-left-right"></i>
